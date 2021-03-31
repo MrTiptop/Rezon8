@@ -314,7 +314,7 @@ function show() {
         play_img = 'play.png';
     }
     let content = "";
-    content += "<div class='navbar'>Snapcast";
+    content += "<div class='navbar'>Rezon8";
     let serverVersion = snapcontrol.server.server.snapserver.version.split('.');
     if ((serverVersion.length >= 2) && (+serverVersion[1] >= 21)) {
         content += "    <img src='" + play_img + "' class='play-button' id='play-button'></a>";
