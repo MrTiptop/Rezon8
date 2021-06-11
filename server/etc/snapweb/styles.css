@@ -1,5 +1,5 @@
 body {
-    background-color: rgb(246, 246, 246);
+    background-color: rgb(22 103 111);
     color: rgb(255, 255, 255);
     font-family: 'Arial', sans-serif;
     width: 100%;
@@ -30,7 +30,7 @@ body {
 
 .navbar {
     overflow: hidden;
-    background-color: #607d8b;
+    background-color: #585858;
     z-index: 1; /* Sit on top */
     padding: 13px;
     color: white;
