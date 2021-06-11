@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(snapcast LANGUAGES CXX VERSION 0.24.0)
+project(snapcast LANGUAGES CXX VERSION 0.25.0)
 set(PROJECT_DESCRIPTION "Multiroom client-server audio player")
 set(PROJECT_URL "https://github.com/badaix/snapcast")
 
 option(BUILD_SHARED_LIBS "Build snapcast in a shared context" ON)
 option(BUILD_STATIC_LIBS "Build snapcast in a static context" ON)
-option(BUILD_TESTS "Build tests (run tests with make test)" ON)
+option(BUILD_TESTS "Build tests (in test/snapcast_test)" ON)
 option(WERROR "Treat warnings as errors" OFF)
 
 option(ASAN "Enable AddressSanitizer" OFF)
@@ -23,7 +23,8 @@ ENDIF()
 IF (TIDY)
     FIND_PROGRAM(CLANG_TIDY "clang-tidy")
     IF(CLANG_TIDY)
-        set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=*,-readability-braces-around-statements,-hicpp-braces-around-statements,-google-readability-braces-around-statements,-hicpp-no-array-decay,-fuchsia-default-arguments-calls,-modernize-use-trailing-return-type,-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers,-bugprone-lambda-function-name,-hicpp-signed-bitwise,-cert-err60-cpp,-cppcoreguidelines-pro-type-reinterpret-cast,-cppcoreguidelines-pro-bounds-pointer-arithmetic")
+        set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=*,-readability-braces-around-statements,-hicpp-braces-around-statements,-google-readability-braces-around-statements,-hicpp-no-array-decay,-fuchsia-default-arguments-calls,-modernize-use-trailing-return-type,-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers,-bugprone-lambda-function-name,-hicpp-signed-bitwise,-cert-err60-cpp,-cppcoreguidelines-pro-type-reinterpret-cast,-cppcoreguidelines-pro-bounds-pointer-arithmetic,-cppcoreguidelines-init-variables,-cppcoreguidelines-no-malloc,-hicpp-no-malloc,-google-readability-todo,-modernize-pass-by-value,-cppcoreguidelines-pro-type-member-init,-hicpp-member-init,-hicpp-avoid-c-arrays,-cppcoreguidelines-avoid-c-arrays,-modernize-avoid-c-arrays,-abseil-string-find-startswith,-google-build-using-namespace,-cppcoreguidelines-owning-memory,-readability-else-after-return,-cppcoreguidelines-pro-type-vararg,-hicpp-vararg,-readability-isolate-declaration")
+        # set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=-*,performance-move-const-arg,modernize-use-nullptr,google-runtime-int;-fix")
     ENDIF()
 ENDIF()
 
@@ -342,6 +343,9 @@ if (BUILD_CLIENT)
     add_subdirectory(client)
 endif()
 
+if (BUILD_TESTS)
+    add_subdirectory(test)
+endif (BUILD_TESTS)
 
 FIND_PROGRAM(CLANG_FORMAT "clang-format")
 IF(CLANG_FORMAT)
