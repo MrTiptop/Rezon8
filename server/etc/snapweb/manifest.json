@@ -1,6 +1,6 @@
 {
-    "short_name": "Snapweb",
-    "name": "Snapcast WebApp",
+    "short_name": "Rezon8",
+    "name": "Rezon8 WebApp",
     "icons": [
         {
             "src": "launcher-icon.png",
@@ -11,6 +11,6 @@
     "start_url": "/index.html",
     "display": "standalone",
     "categories": ["music"],
-    "description": "Snapcast web client",
+    "description": "Rezon8 web client",
     "theme_color": "#455A64"
 }
