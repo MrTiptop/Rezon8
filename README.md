@@ -1,6 +1,6 @@
-# Snapcast
+# Rezon8
 
-![Snapcast](https://raw.githubusercontent.com/badaix/snapcast/master/doc/Snapcast_800.png)
+![Rezon8](https://raw.githubusercontent.com/MrTiptop/Rezon8/master/doc/Snapcast_800.png)
 
 **S**y**n**chronous **a**udio **p**layer
 
@@ -9,11 +9,11 @@ https://travis-ci.org/badaix/snapcast.svg?branch=master)](https://travis-ci.org/
 [![Github Releases](https://img.shields.io/github/release/badaix/snapcast.svg)](https://github.com/badaix/snapcast/releases)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/badaix)
 
-Snapcast is a multiroom client-server audio player, where all clients are time synchronized with the server to play perfectly synced audio. It's not a standalone player, but an extension that turns your existing audio player into a Sonos-like multiroom solution.  
+Rezon8 is a multiroom client-server audio player, where all clients are time synchronized with the server to play perfectly synced audio. It's not a standalone player, but an extension that turns your existing audio player into a Sonos-like multiroom solution.  
 Audio is captured by the server and routed to the connected clients. Several players can feed audio to the server in parallel and clients can be grouped to play the same audio stream.  
-One of the most generic ways to use Snapcast is in conjunction with the music player daemon ([MPD](http://www.musicpd.org/)) or [Mopidy](https://www.mopidy.com/).
+One of the most generic ways to use Rezon8 is in conjunction with the music player daemon ([MPD](http://www.musicpd.org/)) or [Mopidy](https://www.mopidy.com/).
 
-![Overview](https://raw.githubusercontent.com/badaix/snapcast/master/doc/Overview.png)
+![Overview](https://raw.githubusercontent.com/MrTiptop/Rezon8/master/doc/Overview.png)
 
 ## How does it work
 
@@ -42,11 +42,11 @@ For more information on the binary protocol, please see the [documentation](doc/
 
 ## Installation
 
-You can either install Snapcast from a prebuilt package (recommended for new users), or build and install snapcast from source.
+You can either install Rezon8 from a prebuilt package (recommended for new users), or build and install Rezon8 from source.
 
 ### Install Linux packages (recommended for beginners)
 
-Snapcast packages are available for several Linux distributions:
+Rezon8 packages are available for several Linux distributions:
 
 - [Debian](doc/install.md#debian)
 - [OpenWrt](doc/install.md#openwrt)
@@ -61,7 +61,7 @@ Download and extract the archive for your architecture and follow the [debian in
 
 ### Installation from source
 
-Please follow this [guide](doc/build.md) to build Snapcast for
+Please follow this [guide](doc/build.md) to build Rezon8 for
 
 - [Linux](doc/build.md#linux-native)
 - [FreeBSD](doc/build.md#freebsd-native)
@@ -74,7 +74,7 @@ Please follow this [guide](doc/build.md) to build Snapcast for
 
 ## SnapOS
 
-The bravest among you may be interested in [SnapOS](https://github.com/badaix/snapos), a small and fast-booting "just enough" OS to run Snapcast as an appliance.
+The bravest among you may be interested in [SnapOS](https://github.com/badaix/snapos), a small and fast-booting "just enough" OS to run Rezon8 as an appliance.
 
 There is a guide (with the necessary buildfiles) available to build SnapOS, which comes in two flavors:
 
@@ -147,7 +147,7 @@ To setup WiFi on a Raspberry Pi, you can follow this [guide](https://www.raspber
 
 ## Control
 
-Snapcast can be controlled using a [JSON-RPC API](doc/json_rpc_api/v2_0_0.md) over plain TCP, HTTP, or Websockets:
+Rezon8 can be controlled using a [JSON-RPC API](doc/json_rpc_api/v2_0_0.md) over plain TCP, HTTP, or Websockets:
 
 - Set client's volume
 - Mute clients
@@ -160,13 +160,13 @@ Snapcast can be controlled using a [JSON-RPC API](doc/json_rpc_api/v2_0_0.md) ov
 
 The server is shipped with [Snapweb](https://github.com/badaix/snapweb), this WebApp can be reached under `http://<snapserver host>:1780`.
 
-![Snapweb](https://raw.githubusercontent.com/badaix/snapweb/master/snapweb.png)
+![Snapweb](https://raw.githubusercontent.com/badaix/snapweb/master/snapweb)
 
 ### Android client
 
 There is an Android client [snapdroid](https://github.com/badaix/snapdroid) available in [Releases](https://github.com/badaix/snapdroid/releases/latest) and on [Google Play](https://play.google.com/store/apps/details?id=de.badaix.snapcast)
 
-![Snapcast for Android](https://raw.githubusercontent.com/badaix/snapcast/master/doc/snapcast_android_scaled.png)
+![Rezon8 for Android](https://raw.githubusercontent.com/badaix/snapcast/master/doc/snapcast_android_scaled.png)
 
 ### Contributions
 
@@ -174,21 +174,21 @@ There is also an unofficial WebApp from @atoomic [atoomic/snapcast-volume-ui](ht
 This app lists all clients connected to a server and allows you to control individually the volume of each client.
 Once installed, you can use any mobile device, laptop, desktop, or browser.
 
-There is also an [unofficial FHEM module](https://forum.fhem.de/index.php/topic,62389.0.html) from @unimatrix27 which integrates a Snapcast controller into the [FHEM](https://fhem.de/fhem.html) home automation system.
+There is also an [unofficial FHEM module](https://forum.fhem.de/index.php/topic,62389.0.html) from @unimatrix27 which integrates a Rezon8 controller into the [FHEM](https://fhem.de/fhem.html) home automation system.
 
-There is a [snapcast component for Home Assistant](https://home-assistant.io/components/media_player.snapcast/) which integrates a Snapcast controller in to the [Home Assistant](https://home-assistant.io/) home automation system.
+There is a [Rezon8 component for Home Assistant](https://home-assistant.io/components/media_player.snapcast/) which integrates a Rezon8 controller in to the [Home Assistant](https://home-assistant.io/) home automation system.
 
 For a web interface in Python, see [snapcastr](https://github.com/xkonni/snapcastr), based on [python-snapcast](https://github.com/happyleavesaoc/python-snapcast). This interface controls client volume and assigns streams to groups.
 
 Another web interface running on any device is [snapcast-websockets-ui](https://github.com/derglaus/snapcast-websockets-ui), running entirely in the browser, which needs [websockify](https://github.com/novnc/websockify). No configuration needed; features almost all functions; still needs some tuning for the optics.
 
-A web interface called [HydraPlay](https://github.com/mariolukas/HydraPlay) integrates Snapcast and multiple Mopidy instances. It is JavaScript based and uses Angular 7. A Snapcast web socket proxy server is needed to connect Snapcast to HydraPlay over web sockets.
+A web interface called [HydraPlay](https://github.com/mariolukas/HydraPlay) integrates Rezon8 and multiple Mopidy instances. It is JavaScript based and uses Angular 7. A Rezon8 web socket proxy server is needed to connect Rezon8 to HydraPlay over web sockets.
 
 For Windows, there's [Snap.Net](https://github.com/stijnvdb88/snap.net), a control client and player. It runs in the tray and lets you adjust client volumes with just a few clicks. The player simplifies setting up snapclient to play your music through multiple Windows sound devices simultaneously: pc speakers, hdmi audio, any usb audio devices you may have, etc. Snap.Net also runs on Android, and has limited support for iOS.
 
 ## Setup of audio players/server
 
-Snapcast can be used with a number of different audio players and servers, and so it can be integrated into your favorite audio-player solution and make it synced-multiroom capable.
+Rezon8 can be used with a number of different audio players and servers, and so it can be integrated into your favorite audio-player solution and make it synced-multiroom capable.
 The only requirement is that the player's audio can be redirected into the Snapserver's fifo `/tmp/snapfifo`. In the following configuration hints for [MPD](http://www.musicpd.org/) and [Mopidy](https://www.mopidy.com/) are given, which are base of other audio player solutions, like [Volumio](https://volumio.org/) or [RuneAudio](http://www.runeaudio.com/) (both MPD) or [Pi MusicBox](http://www.pimusicbox.com/) (Mopidy).
 
 The goal is to build the following chain:
@@ -224,4 +224,4 @@ Unordered list of features that should make it into the v1.0
 - [X] **Groups** support multiple Groups of clients ("Zones")
 - [X] **Ports** Snapclient for Windows, Mac OS X,...
 - [ ] **JSON-RPC** Possibility to add, remove, rename streams
-- [ ] **Protocol specification** Snapcast binary streaming protocol, JSON-RPC protocol
+- [ ] **Protocol specification** Rezon8 binary streaming protocol, JSON-RPC protocol
