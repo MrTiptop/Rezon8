@@ -1,4 +1,4 @@
-# Snapcast
+# Rezon8
 
 ![Snapcast](https://raw.githubusercontent.com/MrTiptop/Rezon8/master/doc/Snapcast_800.png)
 
