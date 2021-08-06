@@ -1,6 +1,6 @@
 # Snapcast
 
-![Snapcast](https://raw.githubusercontent.com/badaix/snapcast/master/doc/Snapcast_800.png)
+![Snapcast](https://raw.githubusercontent.com/MrTiptop/Rezon8/tree/master/doc/Snapcast_800.png)
 
 **S**y**n**chronous **a**udio **p**layer
 
@@ -13,7 +13,7 @@ Snapcast is a multiroom client-server audio player, where all clients are time s
 Audio is captured by the server and routed to the connected clients. Several players can feed audio to the server in parallel and clients can be grouped to play the same audio stream.  
 One of the most generic ways to use Snapcast is in conjunction with the music player daemon ([MPD](http://www.musicpd.org/)) or [Mopidy](https://www.mopidy.com/).
 
-![Overview](https://raw.githubusercontent.com/badaix/snapcast/master/doc/Overview.png)
+![Overview](https://raw.githubusercontent.com/MrTiptop/Rezon8/tree/master/doc/Overview.png)
 
 ## How does it work
 
