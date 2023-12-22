@@ -72,7 +72,7 @@ namespace strutils = utils::string;
 #ifndef WINDOWS
 static std::string execGetOutput(const std::string& cmd)
 {
-    std::shared_ptr<FILE> pipe(popen((cmd + " 2> /dev/null").c_str(), "r"), pclose);
+    std::shared_ptr<::FILE> pipe(popen((cmd + " 2> /dev/null").c_str(), "r"), pclose);
     if (!pipe)
         return "";
     char buffer[1024];
@@ -421,9 +421,11 @@ static std::string getHostId(const std::string defaultId = "")
 {
     std::string result = strutils::trim_copy(defaultId);
 
-    /// the Android API will return "02:00:00:00:00:00" for WifiInfo.getMacAddress().
-    /// Maybe this could also happen with native code
-    if (!result.empty() && (result != "02:00:00:00:00:00") && (result != "00:00:00:00:00:00"))
+    if (!result.empty()                    // default provided
+        && (result != "00:00:00:00:00:00") // default mac returned by getMaxAddress if it fails
+        && (result != "02:00:00:00:00:00") // the Android API will return "02:00:00:00:00:00" for WifiInfo.getMacAddress()
+        && (result != "ac:de:48:00:11:22") // iBridge interface on new MacBook Pro (later 2016)
+    )
         return result;
 
 #ifdef MACOS

@@ -116,7 +116,7 @@ Available audio backends are configured using the `--player` command line parame
 | Backend   | OS      | Description  | Parameters |
 | --------- | ------- | ------------ | ---------- |
 | alsa      | Linux   | ALSA | `buffer_time=<total buffer size [ms]>` (default 80, min 10)<br />`fragments=<number of buffers>` (default 4, min 2) |
-| pulse     | Linux   | PulseAudio | `buffer_time=<buffer size [ms]>` (default 100, min 10)<br />`server=<PulseAudio server>` - default not-set: use the default server |
+| pulse     | Linux   | PulseAudio | `buffer_time=<buffer size [ms]>` (default 100, min 10)<br />`server=<PulseAudio server>` - default not-set: use the default server<br />`property=<key>=<value>` set PA property, can be used multiple times (default `media.role=music`)  |
 | oboe      | Android | Oboe, using OpenSL ES on Android 4.1 and AAudio on 8.1 | |
 | opensl    | Android | OpenSL ES | |
 | coreaudio | macOS   | Core Audio | |
@@ -124,7 +124,7 @@ Available audio backends are configured using the `--player` command line parame
 | file      | All     | Write audio to file | `filename=<filename>` (`<filename>` = `stdout`, `stderr`, `null` or a filename)<br />`mode=[w|a]` (`w`: write (discarding the content), `a`: append (keeping the content) |
 
 Parameters are appended to the player name, e.g. `--player alsa:buffer_time=100`. Use `--player <name>:?` to get a list of available options.  
-For some audio backends you can configure the PCM device using the `-s` or `--soundcard` parameter, the device is choosen by index or name. Available PCM devices can be listed with `-l` or `--list`
+For some audio backends you can configure the PCM device using the `-s` or `--soundcard` parameter, the device is chosen by index or name. Available PCM devices can be listed with `-l` or `--list`
 
 ## Test
 

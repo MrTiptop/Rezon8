@@ -127,7 +127,7 @@ fakeroot make -f debian/rules CPPFLAGS="-I/path/to/boost_1_7x_0" binary
 Install the build tools and required libs:  
 
 ```sh
-sudo pkg install gmake gcc bash avahi libogg libvorbis libopus flac libsoxr
+sudo pkg install alsa-lib pulseaudio gmake gcc bash avahi libogg libvorbis opus flac libsoxr
 ```
 
 ### Build Snapserver
@@ -161,7 +161,7 @@ Start and stop the server with `sudo service snapserver start` and `sudo service
 
 ## Gentoo (native)
 
-Snapcast is available under Gentoo's [Portage](https://wiki.gentoo.org/wiki/Portage) package management system.  Portage utilises `USE` flags to determine what components are built on compilation.  The availabe options are...
+Snapcast is available under Gentoo's [Portage](https://wiki.gentoo.org/wiki/Portage) package management system.  Portage utilises `USE` flags to determine what components are built on compilation.  The available options are...
 
 ```sh
 equery u snapcast
