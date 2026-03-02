@@ -1,4 +1,5 @@
 "use strict";
+// Robbie De Wet
 class Host {
     constructor(json) {
         this.arch = "";
@@ -499,7 +500,7 @@ function show() {
             else {
                 content += "</span>";
             }
-            content += "    <div class='name'>" + name + "</div>";
+            content += "    <div class='name' onclick=\"openClientSettings('" + client.id + "')\">" + name + "</div>";
             content += "    <div class='client-stream-attach'>";
             content += "      <label class='client-stream-label' for='attach_stream_" + client.id + "'>Attach Source</label>";
             content += "      <select id='attach_stream_" + client.id + "' class='client-stream-select'>";
@@ -531,6 +532,23 @@ function show() {
     content += "        <select id='client-group' class='client-input' name='client-group'></select>";
     content += "        <div class='client-actions'>";
     content += "          <button type='button' class='modal-btn modal-btn-secondary' onclick='cancelClientSettings()'>Cancel</button>";
+    content += "          <button type='submit' class='modal-btn modal-btn-primary'>Save</button>";
+    content += "        </div>";
+    content += "      </form>";
+    content += "    </div>";
+    content += "</div>";
+    content += "<div id='group-settings' class='client-settings'>";
+    content += "    <div class='client-setting-content'>";
+    content += "      <div class='client-modal-header'>";
+    content += "        <div class='client-modal-title'>Edit Group</div>";
+    content += "        <button type='button' class='modal-close-btn' onclick='cancelGroupSettings()' aria-label='Close'>&times;</button>";
+    content += "      </div>";
+    content += "      <form class='client-form' action='javascript:closeGroupSettings()'>";
+    content += "        <input type='hidden' id='group-name-id'>";
+    content += "        <label for='group-name'>Group Name</label>";
+    content += "        <input type='text' class='client-input' id='group-name' name='group-name' placeholder='Group name'>";
+    content += "        <div class='client-actions'>";
+    content += "          <button type='button' class='modal-btn modal-btn-secondary' onclick='cancelGroupSettings()'>Cancel</button>";
     content += "          <button type='submit' class='modal-btn modal-btn-primary'>Save</button>";
     content += "        </div>";
     content += "      </form>";
@@ -643,6 +661,46 @@ function setGroupingStream(group_id) {
     show();
 }
 function renameGroup(group_id) {
+    openGroupSettings(group_id);
+}
+function openGroupSettings(group_id) {
+    let modal = document.getElementById("group-settings");
+    let group = snapcontrol.getGroup(group_id);
+    let current = (group.name && group.name !== "") ? group.name : "Group";
+    let groupIdInput = document.getElementById("group-name-id");
+    let groupNameInput = document.getElementById("group-name");
+    if (!modal || !groupIdInput || !groupNameInput)
+        return;
+    groupIdInput.value = group_id;
+    groupNameInput.value = current;
+    modal.style.display = "block";
+    groupNameInput.focus();
+    groupNameInput.select();
+}
+function cancelGroupSettings() {
+    let modal = document.getElementById("group-settings");
+    if (modal)
+        modal.style.display = "none";
+}
+function closeGroupSettings() {
+    let modal = document.getElementById("group-settings");
+    let groupIdInput = document.getElementById("group-name-id");
+    let groupNameInput = document.getElementById("group-name");
+    if (!groupIdInput || !groupNameInput)
+        return;
+    let group_id = groupIdInput.value;
+    let next = groupNameInput.value.trim();
+    if (next.length === 0) {
+        alert("Group name cannot be empty.");
+        return;
+    }
+    snapcontrol.setGroupName(group_id, next);
+    snapcontrol.status_req_id = snapcontrol.sendRequest('Server.GetStatus');
+    if (modal)
+        modal.style.display = "none";
+    show();
+}
+function renameGroupLegacyPrompt(group_id) {
     let group = snapcontrol.getGroup(group_id);
     let current = (group.name && group.name !== "") ? group.name : "Group";
     let next = window.prompt("Group Name", current);
@@ -726,18 +784,34 @@ function attachClientToStream(client_id) {
         show();
         return;
     }
-    // Split to a dedicated group first, then assign stream.
+    // Split to a dedicated group first, then assign stream once state catches up.
     setGroup(client_id, "new");
-    setTimeout(function () {
-        try {
-            let updatedGroup = snapcontrol.getGroupFromClient(client_id);
-            snapcontrol.setStream(updatedGroup.id, targetStreamId);
-            show();
-        }
-        catch (_a) {
-            snapcontrol.status_req_id = snapcontrol.sendRequest('Server.GetStatus');
-        }
-    }, 450);
+    let previousGroupId = currentGroup.id;
+    let attemptsLeft = 12;
+    let applyStreamToDetachedClient = function () {
+        snapcontrol.status_req_id = snapcontrol.sendRequest('Server.GetStatus');
+        setTimeout(function () {
+            try {
+                let updatedGroup = snapcontrol.getGroupFromClient(client_id);
+                let detached = updatedGroup.id !== previousGroupId || updatedGroup.clients.length === 1;
+                if (detached) {
+                    snapcontrol.setStream(updatedGroup.id, targetStreamId);
+                    show();
+                    return;
+                }
+            }
+            catch (_a) {
+            }
+            attemptsLeft -= 1;
+            if (attemptsLeft <= 0) {
+                snapcontrol.status_req_id = snapcontrol.sendRequest('Server.GetStatus');
+                alert("Attach timed out. Please retry.");
+                return;
+            }
+            setTimeout(applyStreamToDetachedClient, 220);
+        }, 180);
+    };
+    applyStreamToDetachedClient();
 }
 function ungroupClient(client_id) {
     let group = snapcontrol.getGroupFromClient(client_id);
@@ -822,9 +896,13 @@ window.onload = function () {
 };
 // When the user clicks anywhere outside of the modal, close it
 window.onclick = function (event) {
-    let modal = document.getElementById("client-settings");
-    if (event.target == modal) {
-        modal.style.display = "none";
+    let clientModal = document.getElementById("client-settings");
+    let groupModal = document.getElementById("group-settings");
+    if (event.target == clientModal && clientModal) {
+        clientModal.style.display = "none";
+    }
+    if (event.target == groupModal && groupModal) {
+        groupModal.style.display = "none";
     }
 };
 //# sourceMappingURL=snapcontrol.js.map
