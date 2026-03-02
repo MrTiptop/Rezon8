@@ -1,0 +1,57 @@
+# Robbie De Wet
+
+services:
+  snapserver:
+    build:
+      context: .
+      dockerfile: docker/snapcast-test/Dockerfile
+    container_name: snapcast-redesign-test
+    ports:
+      - "1704:1704"
+      - "1705:1705"
+      - "1780:1780"
+    restart: unless-stopped
+
+  snapclient:
+    build:
+      context: .
+      dockerfile: docker/snapcast-test/Dockerfile
+    container_name: snapcast-redesign-client
+    depends_on:
+      - snapserver
+    entrypoint:
+      - /usr/bin/snapclient
+    command:
+      - --host
+      - snapserver
+      - --port
+      - "1704"
+      - --hostID
+      - docker-dummy-client
+      - --player
+      - file
+      - --logsink=stdout
+      - --logfilter=*:info
+    restart: unless-stopped
+
+  snapclient2:
+    build:
+      context: .
+      dockerfile: docker/snapcast-test/Dockerfile
+    container_name: snapcast-redesign-client-2
+    depends_on:
+      - snapserver
+    entrypoint:
+      - /usr/bin/snapclient
+    command:
+      - --host
+      - snapserver
+      - --port
+      - "1704"
+      - --hostID
+      - docker-dummy-client-2
+      - --player
+      - file
+      - --logsink=stdout
+      - --logfilter=*:info
+    restart: unless-stopped
