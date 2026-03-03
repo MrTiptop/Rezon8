@@ -1,5 +1,3 @@
-# Robbie De Wet
-
 services:
   snapserver:
     build:

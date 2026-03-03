@@ -1,4 +1,3 @@
-# Robbie De Wet
 FROM debian:bookworm-slim AS runtime
 
 ARG DEBIAN_FRONTEND=noninteractive

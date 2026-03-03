@@ -1,5 +1,4 @@
 "use strict";
-// Robbie De Wet
 class Host {
     constructor(json) {
         this.arch = "";
