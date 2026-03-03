@@ -307,6 +307,8 @@ let snapstream = null;
 let hide_offline = true;
 let autoplay_done = false;
 const FOLLOW_ME_STORAGE_KEY = "rezon8.follow_me_enabled";
+let followMeSource = "local";
+let followMeBusy = false;
 function isFollowMeEnabled() {
     return window.localStorage.getItem(FOLLOW_ME_STORAGE_KEY) === "1";
 }
@@ -315,13 +317,95 @@ function setFollowMeEnabled(enabled) {
     let followMeToggle = document.getElementById("follow-me-toggle");
     if (followMeToggle) {
         followMeToggle.checked = enabled;
+        followMeToggle.disabled = followMeBusy;
     }
+    updateFollowMeIndicator();
+}
+function hasFollowMeApi() {
+    return !!(config.followMeApi && config.followMeApi.statusUrl && config.followMeApi.toggleUrl);
+}
+function updateFollowMeIndicator() {
+    let indicator = document.getElementById("follow-me-mode");
+    if (!indicator)
+        return;
+    if (followMeBusy) {
+        indicator.textContent = "syncing...";
+        indicator.className = "follow-mode busy";
+        return;
+    }
+    if (followMeSource === "service") {
+        indicator.textContent = "service";
+        indicator.className = "follow-mode service";
+        return;
+    }
+    indicator.textContent = "local";
+    indicator.className = "follow-mode local";
+}
+function refreshFollowMeFromApi() {
+    if (!hasFollowMeApi())
+        return;
+    fetch(config.followMeApi.statusUrl)
+        .then((res) => {
+        if (!res.ok)
+            throw new Error("status check failed");
+        return res.json();
+    })
+        .then((body) => {
+        if (typeof body.enabled !== "boolean")
+            return;
+        followMeSource = "service";
+        setFollowMeEnabled(body.enabled);
+    })
+        .catch(() => {
+        followMeSource = "local";
+        updateFollowMeIndicator();
+    });
+}
+function pushFollowMeState(enabled) {
+    let method = (config.followMeApi && config.followMeApi.method) ? config.followMeApi.method : "POST";
+    return fetch(config.followMeApi.toggleUrl, {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: enabled })
+    })
+        .then((res) => {
+        if (!res.ok)
+            throw new Error("toggle failed");
+        return res.json();
+    })
+        .then((body) => {
+        if (typeof body.enabled === "boolean") {
+            setFollowMeEnabled(body.enabled);
+        }
+        else {
+            setFollowMeEnabled(enabled);
+        }
+        followMeSource = "service";
+    });
 }
 function onFollowMeToggle() {
     let followMeToggle = document.getElementById("follow-me-toggle");
     if (!followMeToggle)
         return;
-    setFollowMeEnabled(followMeToggle.checked);
+    let nextState = followMeToggle.checked;
+    if (!hasFollowMeApi()) {
+        followMeSource = "local";
+        setFollowMeEnabled(nextState);
+        return;
+    }
+    let previous = isFollowMeEnabled();
+    followMeBusy = true;
+    updateFollowMeIndicator();
+    pushFollowMeState(nextState)
+        .catch(() => {
+        alert("Failed to update Follow Me service state.");
+        setFollowMeEnabled(previous);
+        followMeSource = "local";
+    })
+        .finally(() => {
+        followMeBusy = false;
+        updateFollowMeIndicator();
+    });
 }
 function autoplayRequested() {
     return document.location.hash.match(/autoplay/) !== null;
@@ -343,6 +427,7 @@ function show() {
     content += "  <div class='navbar-actions'>";
     content += "    <span class='follow-toggle-wrap'>";
     content += "      <label class='follow-toggle-label' for='follow-me-toggle'>Follow Me</label>";
+    content += "      <span id='follow-me-mode' class='follow-mode'></span>";
     content += "      <input type='checkbox' id='follow-me-toggle' class='follow-toggle' onchange='onFollowMeToggle()'>";
     content += "    </span>";
     let serverVersion = snapcontrol.server.server.snapserver.version.split('.');
@@ -563,6 +648,7 @@ function show() {
         };
     }
     setFollowMeEnabled(isFollowMeEnabled());
+    updateFollowMeIndicator();
     for (let group of snapcontrol.server.groups) {
         if (group.clients.length > 1) {
             let slider = document.getElementById("vol_" + group.id);
@@ -892,6 +978,7 @@ function deleteClient(id) {
 }
 window.onload = function () {
     snapcontrol = new SnapControl(config.baseUrl);
+    refreshFollowMeFromApi();
 };
 // When the user clicks anywhere outside of the modal, close it
 window.onclick = function (event) {

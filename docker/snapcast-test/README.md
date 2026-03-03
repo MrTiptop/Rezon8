@@ -24,5 +24,6 @@ docker compose -f docker-compose.snapcast-test.yml down
 ```
 
 ## Notes
-- The Follow Me toggle in this prototype is a UI-state toggle (stored in browser local storage).
-- Backend integration to your `follow_me_ap_syslog.py` service can be wired in next by adding a tiny control endpoint.
+- Follow Me defaults to browser-local state.
+- To bind the toggle to a real backend service, set `config.followMeApi.statusUrl` and `config.followMeApi.toggleUrl` in `docker/snapcast-test/snapweb/config.js`.
+- The provided `scripts/follow_me_ap_syslog.py` includes a lightweight control API (`/follow-me`) that can be used for this integration.
