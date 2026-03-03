@@ -1,6 +1,4 @@
 #!/usr/bin/env sh
-# Robbie De Wet
-
 set -eu
 
 for fifo in /tmp/snapfifo /tmp/airplay_fifo /tmp/librespot_fifo /tmp/dummy_fifo; do
