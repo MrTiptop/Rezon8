@@ -558,7 +558,6 @@ body {
     z-index: 1;
 }
 
-.eight-ball,
 .play-button {
     animation: resonatePulse 2.8s ease-out infinite;
 }
