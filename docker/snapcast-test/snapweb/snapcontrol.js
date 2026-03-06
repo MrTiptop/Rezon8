@@ -524,7 +524,7 @@ function show() {
     content += "<div class='groupings-panel'>";
     content += "  <div class='groupings-head'>";
     content += "    <div class='groupings-title'>Existing Groupings</div>";
-    content += "    <button class='grouping-prune-btn' onclick='pruneStaleClients()'>Prune Stale (" + staleClientCount + ")</button>";
+    content += "    <button class='grouping-prune-btn' onclick='pruneStaleClients()'>Prune Groups (" + staleClientCount + ")</button>";
     content += "  </div>";
     for (let i = 0; i < server.groups.length; i++) {
         let g = server.groups[i];
@@ -1081,14 +1081,14 @@ function pruneStaleClients() {
         alert("No stale clients to prune.");
         return;
     }
-    if (!confirm("Prune " + staleIds.length + " stale client(s)?")) {
+    if (!confirm("Prune " + staleIds.length + " stale group client(s)?")) {
         return;
     }
     let idx = 0;
     let step = function () {
         if (idx >= staleIds.length) {
             snapcontrol.status_req_id = snapcontrol.sendRequest('Server.GetStatus');
-            alert("Pruned " + staleIds.length + " stale client(s).");
+            alert("Pruned " + staleIds.length + " stale group client(s).");
             return;
         }
         snapcontrol.sendRequest('Server.DeleteClient', { id: staleIds[idx] });
