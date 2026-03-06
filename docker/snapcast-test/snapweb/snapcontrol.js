@@ -1,4 +1,3 @@
-// Robbie De Wet
 "use strict";
 class Host {
     constructor(json) {
@@ -343,8 +342,76 @@ let snapcontrol;
 let snapstream = null;
 let hide_offline = true;
 let autoplay_done = false;
+let lastPlayToggleTs = 0;
+let pendingWebAttachStreamId = null;
+let pendingWebAttachAttempts = 0;
 function autoplayRequested() {
     return document.location.hash.match(/autoplay/) !== null;
+}
+function getPreferredPlayingStreamId() {
+    if (!snapcontrol || !snapcontrol.server || !snapcontrol.server.streams)
+        return "";
+    let nowPlaying = getNowPlaying(snapcontrol.server);
+    if (nowPlaying && nowPlaying.stream && nowPlaying.stream.id)
+        return nowPlaying.stream.id;
+    for (let stream of snapcontrol.server.streams) {
+        if (stream.status === "playing")
+            return stream.id;
+    }
+    return "";
+}
+function getCurrentWebClientId() {
+    try {
+        if (typeof getPersistentValue === "function")
+            return getPersistentValue("uniqueId", "");
+    }
+    catch (_) {
+    }
+    return "";
+}
+function resolveCurrentWebClient() {
+    if (!snapcontrol || !snapcontrol.server)
+        return null;
+    let preferredId = getCurrentWebClientId();
+    if (preferredId) {
+        let exact = snapcontrol.server.getClient(preferredId);
+        if (exact)
+            return exact;
+    }
+    let connectedWebClients = [];
+    for (let group of snapcontrol.server.groups) {
+        for (let client of group.clients) {
+            if (client.connected && client.host && client.host.arch === "web")
+                connectedWebClients.push(client);
+        }
+    }
+    if (connectedWebClients.length === 1)
+        return connectedWebClients[0];
+    return null;
+}
+function maybeAutoAttachCurrentWebClient() {
+    if (!snapstream || !pendingWebAttachStreamId || pendingWebAttachAttempts <= 0 || !snapcontrol)
+        return;
+    pendingWebAttachAttempts -= 1;
+    let client = resolveCurrentWebClient();
+    if (client && client.connected) {
+        try {
+            let group = snapcontrol.getGroupFromClient(client.id);
+            if (group.stream_id !== pendingWebAttachStreamId) {
+                snapcontrol.setStream(group.id, pendingWebAttachStreamId);
+                snapcontrol.status_req_id = snapcontrol.sendRequest('Server.GetStatus');
+            }
+            pendingWebAttachStreamId = null;
+            pendingWebAttachAttempts = 0;
+            return;
+        }
+        catch (_) {
+        }
+    }
+    if (pendingWebAttachAttempts > 0) {
+        snapcontrol.status_req_id = snapcontrol.sendRequest('Server.GetStatus');
+        setTimeout(maybeAutoAttachCurrentWebClient, 350);
+    }
 }
 function escapeHtml(value) {
     return String(value == null ? "" : value)
@@ -704,10 +771,19 @@ function show() {
     document.getElementById('show').innerHTML = content;
     let playElem = document.getElementById('play-button');
     if (playElem) {
-        playElem.onclick = () => {
+        let onPlayTap = (ev) => {
+            if (ev)
+                ev.preventDefault();
+            let now = Date.now();
+            if (now - lastPlayToggleTs < 450)
+                return;
+            lastPlayToggleTs = now;
             play();
         };
+        playElem.onclick = onPlayTap;
+        playElem.ontouchstart = onPlayTap;
     }
+    maybeAutoAttachCurrentWebClient();
     for (let group of snapcontrol.server.groups) {
         if (group.clients.length > 1) {
             let slider = document.getElementById("vol_" + group.id);
@@ -780,12 +856,40 @@ function setVolume(id, mute) {
         show();
 }
 function play() {
-    if (snapstream) {
-        snapstream.stop();
-        snapstream = null;
+    try {
+        if (snapstream) {
+            // On iOS Safari, treat play tap as an unlock action if audio context is suspended.
+            if (typeof snapstream.isSuspended === "function" && snapstream.isSuspended()) {
+                if (typeof snapstream.ensureAudioUnlockedDirect === "function")
+                    snapstream.ensureAudioUnlockedDirect();
+                else
+                    snapstream.ensureAudioUnlocked();
+                show();
+                return;
+            }
+            snapstream.stop();
+            snapstream = null;
+        }
+        else {
+            if (!config || !config.baseUrl) {
+                throw new Error("Missing stream base URL");
+            }
+            pendingWebAttachStreamId = getPreferredPlayingStreamId();
+            pendingWebAttachAttempts = pendingWebAttachStreamId ? 20 : 0;
+            snapstream = new SnapStream(config.baseUrl);
+            if (typeof snapstream.ensureAudioUnlockedDirect === "function")
+                snapstream.ensureAudioUnlockedDirect();
+            else
+                snapstream.ensureAudioUnlocked();
+            if (pendingWebAttachAttempts > 0) {
+                setTimeout(maybeAutoAttachCurrentWebClient, 300);
+            }
+        }
     }
-    else {
-        snapstream = new SnapStream(config.baseUrl);
+    catch (err) {
+        console.error("Play toggle failed:", err);
+        alert("Unable to start web audio playback. Please reload Snapweb once and try again.");
+        snapstream = null;
     }
     show();
 }

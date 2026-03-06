@@ -352,36 +352,24 @@ class AudioStream {
                 this.lastLog = secs;
                 console.log("age: " + age.toFixed(2) + ", req: " + reqChunkDuration);
             }
-            if (age < -reqChunkDuration) {
+            let bypassYoungGate = (age < -reqChunkDuration) && (this.chunks.length >= 3);
+            if (age < -reqChunkDuration && !bypassYoungGate) {
                 console.log("age: " + age.toFixed(2) + " < req: " + reqChunkDuration * -1 + ", chunk.startMs: " + this.chunk.startMs().toFixed(2) + ", timestamp: " + this.chunk.timestamp.getMilliseconds().toFixed(2));
                 console.log("Chunk too young, returning silence");
             }
             else {
-                if (Math.abs(age) > 5) {
-                    // We are 5ms apart, do a hard sync, i.e. don't play faster/slower, 
-                    // but seek to the desired position instead
-                    while (this.chunk && age > this.chunk.duration()) {
-                        console.log("Chunk too old, dropping (age: " + age.toFixed(2) + " > " + this.chunk.duration().toFixed(2) + ")");
-                        this.chunk = this.chunks.shift();
-                        if (!this.chunk)
-                            break;
-                        age = serverPlayTimeMs - this.chunk.startMs();
-                    }
-                    if (this.chunk) {
-                        if (age > 0) {
-                            console.log("Fast forwarding " + age.toFixed(2) + "ms");
-                            this.chunk.readFrames(Math.floor(age * this.chunk.sampleFormat.msRate()));
-                        }
-                        else if (age < 0) {
-                            console.log("Playing silence " + -age.toFixed(2) + "ms");
-                            let silentFrames = Math.floor(-age * this.chunk.sampleFormat.msRate());
-                            left.fill(0, 0, silentFrames);
-                            right.fill(0, 0, silentFrames);
-                            read = silentFrames;
-                            pos = silentFrames;
-                        }
-                        age = 0;
-                    }
+                if (bypassYoungGate) {
+                    // If queue keeps growing, consume queued audio instead of stalling forever.
+                    age = 0;
+                }
+                // Keep tempo stable: avoid aggressive hard-seek sync corrections.
+                // We only drop fully stale chunks to recover from severe lag.
+                while (this.chunk && age > this.chunk.duration()) {
+                    console.log("Chunk too old, dropping (age: " + age.toFixed(2) + " > " + this.chunk.duration().toFixed(2) + ")");
+                    this.chunk = this.chunks.shift();
+                    if (!this.chunk)
+                        break;
+                    age = serverPlayTimeMs - this.chunk.startMs();
                 }
                 // else if (age > 0.1) {
                 //     let rate = age * 0.0005;
@@ -402,18 +390,11 @@ class AudioStream {
                 // else {
                 //     this.setRealSampleRate(this.sampleFormat.rate);
                 // }
+                // Keep original playback speed: disable frame insertion/removal drift correction.
+                // This avoids audible fast/slow artifacts on mobile Safari.
                 let addFrames = 0;
                 let everyN = 0;
-                if (age > 0.1) {
-                    addFrames = Math.ceil(age); // / 5);
-                }
-                else if (age < -0.1) {
-                    addFrames = Math.floor(age); // / 5);
-                }
-                // addFrames = -2;
-                let readFrames = frames + addFrames - read;
-                if (addFrames != 0)
-                    everyN = Math.ceil((frames + addFrames - read) / (Math.abs(addFrames) + 1));
+                let readFrames = frames - read;
                 // addFrames = 0;
                 // console.debug("frames: " + frames + ", readFrames: " + readFrames + ", addFrames: " + addFrames + ", everyN: " + everyN);
                 while ((read < readFrames) && this.chunk) {
@@ -490,14 +471,9 @@ class TimeProvider {
         // console.log("now: " + this.now() + "\t" + this.now() + "\t" + this.now());
     }
     now() {
-        if (!this.ctx) {
-            return window.performance.now();
-        }
-        else {
-            // Use the more accurate getOutputTimestamp if available, fallback to ctx.currentTime otherwise.
-            const contextTime = !!this.ctx.getOutputTimestamp ? this.ctx.getOutputTimestamp().contextTime : undefined;
-            return (contextTime !== undefined ? contextTime : this.ctx.currentTime) * 1000;
-        }
+        // Use a stable monotonic clock for protocol sync/timestamps.
+        // AudioContext clock can drift/suspend on iOS and break chunk scheduling.
+        return window.performance.now();
     }
     nowSec() {
         return this.now() / 1000;
@@ -703,14 +679,122 @@ class SnapStream {
         this.bufferMs = 1000;
         this.bufferNum = 0;
         this.latency = 0;
+        this.codecName = "unknown";
+        this.chunkCount = 0;
+        this.lastChunkAt = 0;
         this.baseUrl = baseUrl;
         this.timeProvider = new TimeProvider();
+        this.debugBadge = null;
+        this.outputPrimed = false;
+        this.setupDebugBadge();
+        this.unlockHandlersBound = false;
         if (this.setupAudioContext()) {
+            // iOS Safari often requires resume() to be called in direct user gesture flow.
+            // Constructor is created from the play button click, so resume here as well.
+            this.ensureAudioUnlocked();
+            this.bindUnlockHandlers();
+            this.updateDebugBadge("init");
             this.connect();
         }
         else {
             alert("Sorry, but the Web Audio API is not supported by your browser");
         }
+    }
+    ensureAudioUnlocked() {
+        if (!this.ctx)
+            return;
+        if (this.ctx.state === "running") {
+            if (!this.outputPrimed)
+                this.primeAudioOutput();
+            return;
+        }
+        this.ctx.resume().then(() => {
+            this.primeAudioOutput();
+        }).catch((err) => {
+            console.warn("Audio context resume blocked:", err);
+            this.updateDebugBadge("resume-blocked");
+        });
+        this.updateDebugBadge("resume-try");
+    }
+    ensureAudioUnlockedDirect() {
+        if (!this.ctx)
+            return;
+        if (this.ctx.state !== "running") {
+            try {
+                // Keep resume call synchronous in direct user gesture path for iOS.
+                this.ctx.resume();
+            }
+            catch (err) {
+                console.warn("Direct audio context resume failed:", err);
+            }
+        }
+        this.primeAudioOutput();
+        this.updateDebugBadge("resume-direct");
+    }
+    primeAudioOutput() {
+        if (!this.ctx || this.outputPrimed)
+            return;
+        try {
+            // iOS sometimes needs an explicit started source after resume()
+            // before audio is routed to the speaker.
+            let buf = this.ctx.createBuffer(1, 1, this.ctx.sampleRate || 44100);
+            let src = this.ctx.createBufferSource();
+            src.buffer = buf;
+            src.connect(this.ctx.destination);
+            src.start(0);
+            this.outputPrimed = true;
+            this.updateDebugBadge("primed");
+        }
+        catch (err) {
+            console.warn("Audio output prime failed:", err);
+        }
+    }
+    isSuspended() {
+        return !!this.ctx && this.ctx.state !== "running";
+    }
+    setupDebugBadge() {
+        try {
+            if (!document.body)
+                return;
+            const badge = document.createElement("div");
+            badge.id = "audio-debug-badge";
+            badge.style.position = "fixed";
+            badge.style.right = "10px";
+            badge.style.bottom = "10px";
+            badge.style.zIndex = "10000";
+            badge.style.fontSize = "11px";
+            badge.style.lineHeight = "1.35";
+            badge.style.padding = "6px 8px";
+            badge.style.borderRadius = "8px";
+            badge.style.background = "rgba(0,0,0,0.72)";
+            badge.style.color = "#fff";
+            badge.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+            badge.style.pointerEvents = "none";
+            badge.textContent = "audio: starting";
+            document.body.appendChild(badge);
+            this.debugBadge = badge;
+        }
+        catch (_) {
+            // Debug overlay is optional; never block playback.
+        }
+    }
+    updateDebugBadge(reason) {
+        if (!this.debugBadge)
+            return;
+        const state = this.ctx ? this.ctx.state : "noctx";
+        const sinceChunkMs = this.lastChunkAt ? Math.max(0, Date.now() - this.lastChunkAt) : -1;
+        const chunkText = sinceChunkMs < 0 ? "none" : (sinceChunkMs + "ms ago");
+        this.debugBadge.textContent = "audio " + reason + " | state:" + state + " | codec:" + this.codecName + " | chunks:" + this.chunkCount + " (" + chunkText + ")";
+    }
+    bindUnlockHandlers() {
+        if (this.unlockHandlersBound)
+            return;
+        this.unlockHandlersBound = true;
+        const unlock = () => this.ensureAudioUnlocked();
+        // Keep iOS audio unlocked when the user interacts again.
+        window.addEventListener("touchstart", unlock, false);
+        window.addEventListener("touchend", unlock, false);
+        window.addEventListener("click", unlock, false);
     }
     setupAudioContext() {
         let AudioContext = window.AudioContext // Default
@@ -749,11 +833,16 @@ class SnapStream {
             this.sendMessage(hello);
             this.syncTime();
             this.syncHandle = window.setInterval(() => this.syncTime(), 1000);
+            this.updateDebugBadge("ws-open");
         };
-        this.streamsocket.onerror = (ev) => { console.error('error:', ev); };
+        this.streamsocket.onerror = (ev) => {
+            console.error('error:', ev);
+            this.updateDebugBadge("ws-error");
+        };
         this.streamsocket.onclose = () => {
             window.clearInterval(this.syncHandle);
             console.info('connection lost, reconnecting in 1s');
+            this.updateDebugBadge("ws-close");
             setTimeout(() => this.connect(), 1000);
         };
     }
@@ -763,6 +852,7 @@ class SnapStream {
         if (type == 1) {
             let codec = new CodecMessage(msg.data);
             console.log("Codec: " + codec.codec);
+            this.codecName = codec.codec;
             if (codec.codec == "flac") {
                 this.decoder = new FlacDecoder();
             }
@@ -786,24 +876,32 @@ class SnapStream {
                     if (this.bufferDurationMs != 0) {
                         this.bufferFrameCount = Math.floor(this.bufferDurationMs * this.sampleFormat.msRate());
                     }
-                    if (window.AudioContext) {
-                        // we are not using webkitAudioContext, so it's safe to setup a new AudioContext with the new samplerate
-                        // since this code is not triggered by direct user input, we cannt create a webkitAudioContext here
-                        this.stopAudio();
-                        this.setupAudioContext();
-                    }
-                    this.ctx.resume();
+                    // Do not recreate AudioContext during async codec negotiation.
+                    // On iOS this can break playback because resume() is no longer in a direct gesture.
+                    this.resetPlaybackQueue();
+                    this.ensureAudioUnlocked();
                     this.timeProvider.setAudioContext(this.ctx);
-                    this.gainNode.gain.value = this.serverSettings.muted ? 0 : this.serverSettings.volumePercent / 100;
+                    const muted = this.serverSettings ? this.serverSettings.muted : false;
+                    const volume = this.serverSettings ? this.serverSettings.volumePercent : 100;
+                    this.gainNode.gain.value = muted ? 0 : volume / 100;
                     // this.timeProvider = new TimeProvider(this.ctx);
                     this.stream = new AudioStream(this.timeProvider, this.sampleFormat, this.bufferMs);
                     this.latency = (this.ctx.baseLatency !== undefined ? this.ctx.baseLatency : 0) + (this.ctx.outputLatency !== undefined ? this.ctx.outputLatency : 0);
                     console.log("Base latency: " + this.ctx.baseLatency + ", output latency: " + this.ctx.outputLatency + ", latency: " + this.latency);
+                    this.updateDebugBadge("codec-ready");
                     this.play();
                 }
             }
         }
         else if (type == 2) {
+            this.chunkCount += 1;
+            this.lastChunkAt = Date.now();
+            if ((this.chunkCount % 50) === 0) {
+                this.updateDebugBadge("streaming");
+            }
+            if (this.isSuspended() && (this.chunkCount % 30) === 0) {
+                this.ensureAudioUnlocked();
+            }
             let pcmChunk = new PcmChunkMessage(msg.data, this.sampleFormat);
             if (this.decoder) {
                 let decoded = this.decoder.decode(pcmChunk);
@@ -817,6 +915,7 @@ class SnapStream {
             this.gainNode.gain.value = this.serverSettings.muted ? 0 : this.serverSettings.volumePercent / 100;
             this.bufferMs = this.serverSettings.bufferMs - this.serverSettings.latency;
             console.log("ServerSettings bufferMs: " + this.serverSettings.bufferMs + ", latency: " + this.serverSettings.latency + ", volume: " + this.serverSettings.volumePercent + ", muted: " + this.serverSettings.muted);
+            this.updateDebugBadge("settings");
         }
         else if (type == 4) {
             if (this.timeProvider) {
@@ -847,7 +946,12 @@ class SnapStream {
         // if (this.ctx) {
         //     this.ctx.close();
         // }
+        if (!this.ctx)
+            return;
         this.ctx.suspend();
+        this.resetPlaybackQueue();
+    }
+    resetPlaybackQueue() {
         while (this.audioBuffers.length > 0) {
             let buffer = this.audioBuffers.pop();
             buffer.onended = () => { };
@@ -860,10 +964,11 @@ class SnapStream {
     stop() {
         window.clearInterval(this.syncHandle);
         this.stopAudio();
-        if ([WebSocket.OPEN, WebSocket.CONNECTING].includes(this.streamsocket.readyState)) {
+        if (this.streamsocket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(this.streamsocket.readyState)) {
             this.streamsocket.onclose = () => { };
             this.streamsocket.close();
         }
+        this.updateDebugBadge("stopped");
     }
     play() {
         this.playTime = this.timeProvider.nowSec() + 0.1;
