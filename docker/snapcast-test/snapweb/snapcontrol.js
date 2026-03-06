@@ -345,6 +345,9 @@ let autoplay_done = false;
 let lastPlayToggleTs = 0;
 let pendingWebAttachStreamId = null;
 let pendingWebAttachAttempts = 0;
+const STREAM_METADATA_IDLE_TIMEOUT_MS = 30000;
+let streamIdleSinceMs = {};
+let idleMetadataRefreshTimer = null;
 function autoplayRequested() {
     return document.location.hash.match(/autoplay/) !== null;
 }
@@ -457,16 +460,77 @@ function getMetadataCoverUrl(metadata) {
     }
     return "";
 }
+function updateStreamIdleTracking(server) {
+    if (!server || !server.streams)
+        return;
+    let now = Date.now();
+    let liveIds = {};
+    for (let stream of server.streams) {
+        let id = String(stream.id || "");
+        liveIds[id] = true;
+        if (stream.status === "playing") {
+            delete streamIdleSinceMs[id];
+        }
+        else if (streamIdleSinceMs[id] == null) {
+            streamIdleSinceMs[id] = now;
+        }
+    }
+    for (let id in streamIdleSinceMs) {
+        if (!liveIds[id])
+            delete streamIdleSinceMs[id];
+    }
+}
+function isStreamMetadataStale(stream) {
+    if (!stream || stream.status === "playing")
+        return false;
+    let id = String(stream.id || "");
+    let since = streamIdleSinceMs[id];
+    if (since == null)
+        return false;
+    return (Date.now() - since) >= STREAM_METADATA_IDLE_TIMEOUT_MS;
+}
+function scheduleIdleMetadataRefresh(server) {
+    if (idleMetadataRefreshTimer) {
+        clearTimeout(idleMetadataRefreshTimer);
+        idleMetadataRefreshTimer = null;
+    }
+    if (!server || !server.streams)
+        return;
+    let now = Date.now();
+    let nextDelayMs = null;
+    for (let stream of server.streams) {
+        if (!stream || stream.status === "playing")
+            continue;
+        let id = String(stream.id || "");
+        let since = streamIdleSinceMs[id];
+        if (since == null)
+            continue;
+        let remaining = STREAM_METADATA_IDLE_TIMEOUT_MS - (now - since);
+        if (remaining > 0 && (nextDelayMs == null || remaining < nextDelayMs)) {
+            nextDelayMs = remaining;
+        }
+    }
+    if (nextDelayMs != null) {
+        idleMetadataRefreshTimer = setTimeout(() => show(), nextDelayMs + 60);
+    }
+}
 function getNowPlaying(server) {
     if (!server || !server.streams || server.streams.length === 0)
         return null;
     let scored = [];
     for (let stream of server.streams) {
         let metadata = stream.metadata || {};
+        let stale = isStreamMetadataStale(stream);
         let title = normalizeMetadataText(metadata.title || metadata.track || metadata.name);
         let artist = normalizeMetadataText(metadata.artist || metadata.albumArtist || metadata.performer);
         let album = normalizeMetadataText(metadata.album);
         let artUrl = getMetadataCoverUrl(metadata);
+        if (stale) {
+            title = "";
+            artist = "";
+            album = "";
+            artUrl = "";
+        }
         let hasMetadata = title !== "" || artist !== "" || album !== "" || artUrl !== "";
         let score = 0;
         if (stream.status === "playing")
@@ -482,10 +546,17 @@ function getNowPlaying(server) {
 }
 function buildStreamMetadataView(stream) {
     let metadata = stream.metadata || {};
+    let stale = isStreamMetadataStale(stream);
     let title = normalizeMetadataText(metadata.title || metadata.track || metadata.name);
     let artist = normalizeMetadataText(metadata.artist || metadata.albumArtist || metadata.performer);
     let album = normalizeMetadataText(metadata.album);
     let artUrl = getMetadataCoverUrl(metadata);
+    if (stale) {
+        title = "Waiting for metadata";
+        artist = "";
+        album = "";
+        artUrl = "";
+    }
     let hasMetadata = title !== "" || artist !== "" || album !== "" || artUrl !== "";
     return { title, artist, album, artUrl, hasMetadata };
 }
@@ -517,6 +588,8 @@ function show() {
     content += "</div>";
     content += "<div class='content'>";
     let server = snapcontrol.server;
+    updateStreamIdleTracking(server);
+    scheduleIdleMetadataRefresh(server);
     let nowPlaying = getNowPlaying(server);
     let streamOptionsFor = (selectedId) => {
         let html = "";
@@ -537,7 +610,7 @@ function show() {
         }
         content += "<div class='now-playing-content'>";
         content += "<div class='now-playing-kicker'>Now Playing - " + escapeHtml(nowPlaying.stream.id) + "</div>";
-        content += "<div class='now-playing-title'>" + escapeHtml(nowPlaying.title || "No track metadata yet") + "</div>";
+        content += "<div class='now-playing-title'>" + escapeHtml(nowPlaying.title || "Waiting for metadata") + "</div>";
         content += "<div class='now-playing-subtitle'>" + escapeHtml(nowPlaying.artist || "Waiting for stream metadata") + "</div>";
         if (nowPlaying.album) {
             content += "<div class='now-playing-album'>" + escapeHtml(nowPlaying.album) + "</div>";
