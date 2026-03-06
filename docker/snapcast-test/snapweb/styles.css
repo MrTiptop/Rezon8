@@ -157,7 +157,7 @@ select {
 .name {
     color: #000000;
     user-select: none;
-    font-family: 'Gotham', sans-serif
+    font-family: 'Gotham', sans-serif;
 /*     background: red; */
     padding-top: 5px;
     padding-left: 5px;
@@ -508,6 +508,46 @@ body {
     background: rgba(255, 64, 129, 0.85);
 }
 
+.stream-meta-card {
+    margin: 4px 0 8px;
+    padding: 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.12);
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 8px;
+    align-items: center;
+}
+
+.stream-meta-art {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.stream-meta-art-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 18px;
+}
+
+.stream-meta-title {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.stream-meta-artist,
+.stream-meta-album {
+    margin-top: 2px;
+    font-size: 12px;
+    opacity: 0.92;
+}
+
 /* Resonate theme layer */
 :root {
     --rz-glow: rgba(255, 64, 129, 0.28);
@@ -609,7 +649,7 @@ body {
     align-items: center;
     gap: 10px;
     margin-left: auto;
-    padding-right: 6px;
+    padding-right: 36px;
 }
 
 .follow-toggle-wrap {
@@ -741,7 +781,26 @@ body {
 .groupings-title {
     font-size: 16px;
     font-weight: 700;
+    margin-bottom: 0;
+}
+
+.groupings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     margin-bottom: 10px;
+}
+
+.grouping-prune-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    background: rgba(255, 64, 129, 0.9);
+    color: #fff;
 }
 
 .grouping-item {
@@ -816,6 +875,7 @@ body {
     color: #fff;
 }
 
+
 .grouping-action-danger {
     background: rgba(116, 87, 24, 0.9);
 }
@@ -860,4 +920,73 @@ body {
 
 .client-ungroup-btn {
     background: #456168;
+}
+
+.now-playing-card {
+    margin: 2px 10px 12px;
+    padding: 10px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    display: grid;
+    grid-template-columns: 82px 1fr;
+    gap: 12px;
+    align-items: center;
+}
+
+.now-playing-art {
+    width: 82px;
+    height: 82px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.now-playing-art-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.now-playing-kicker {
+    font-size: 12px;
+    letter-spacing: 0.35px;
+    opacity: 0.88;
+    margin-bottom: 4px;
+}
+
+.now-playing-title {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.now-playing-subtitle,
+.now-playing-album {
+    margin-top: 3px;
+    font-size: 13px;
+    opacity: 0.92;
+}
+
+.now-playing-hint {
+    margin-top: 6px;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+    .now-playing-card {
+        grid-template-columns: 68px 1fr;
+        gap: 10px;
+    }
+    .now-playing-art {
+        width: 68px;
+        height: 68px;
+    }
+    .now-playing-title {
+        font-size: 15px;
+    }
 }

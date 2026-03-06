@@ -1,3 +1,4 @@
+// Robbie De Wet
 "use strict";
 class Host {
     constructor(json) {
@@ -62,6 +63,8 @@ class Stream {
     constructor(json) {
         this.id = "";
         this.status = "";
+        this.properties = {};
+        this.metadata = {};
         this.fromJson(json);
     }
     fromJson(json) {
@@ -69,6 +72,19 @@ class Stream {
         this.status = json.status;
         let juri = json.uri;
         this.uri = { raw: juri.raw, scheme: juri.scheme, host: juri.host, path: juri.path, fragment: juri.fragment, query: juri.query };
+        if (json.properties) {
+            this.updateProperties(json.properties);
+        }
+    }
+    updateProperties(properties) {
+        if (!properties)
+            return;
+        this.properties = Object.assign({}, this.properties, properties);
+        if (Object.prototype.hasOwnProperty.call(properties, "metadata")) {
+            let metadataUpdate = properties.metadata || {};
+            this.metadata = Object.assign({}, this.metadata, metadataUpdate);
+            this.properties.metadata = this.metadata;
+        }
     }
 }
 class Server {
@@ -130,6 +146,20 @@ class SnapControl {
             setTimeout(() => this.connect(), 1000);
         };
     }
+    mergeStreamProperties(targetServer, previousServer) {
+        if (!targetServer || !targetServer.streams || !previousServer || !previousServer.streams)
+            return;
+        let previousById = {};
+        for (let stream of previousServer.streams) {
+            previousById[stream.id] = stream;
+        }
+        for (let stream of targetServer.streams) {
+            let oldStream = previousById[stream.id];
+            if (!oldStream)
+                continue;
+            stream.updateProperties(oldStream.properties);
+        }
+    }
     action(answer) {
         switch (answer.method) {
             case 'Client.OnVolumeChanged':
@@ -159,8 +189,13 @@ class SnapControl {
             case 'Stream.OnUpdate':
                 this.getStream(answer.params.id).fromJson(answer.params.stream);
                 break;
+            case 'Stream.OnProperties':
+                this.getStream(answer.params.id).updateProperties(answer.params);
+                break;
             case 'Server.OnUpdate':
+                let previousServer = this.server;
                 this.server.fromJson(answer.params.server);
+                this.mergeStreamProperties(this.server, previousServer);
                 break;
             default:
                 break;
@@ -283,7 +318,9 @@ class SnapControl {
         console.log("Received " + (is_response ? "response" : "notification") + ", json: " + JSON.stringify(answer));
         if (is_response) {
             if (answer.id == this.status_req_id) {
+                let previousServer = this.server;
                 this.server = new Server(answer.result.server);
+                this.mergeStreamProperties(this.server, previousServer);
                 show();
             }
         }
@@ -410,6 +447,70 @@ function onFollowMeToggle() {
 function autoplayRequested() {
     return document.location.hash.match(/autoplay/) !== null;
 }
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+function normalizeMetadataText(value) {
+    if (Array.isArray(value))
+        return value.map((v) => String(v).trim()).filter((v) => v.length > 0).join(", ");
+    if (value == null)
+        return "";
+    return String(value).trim();
+}
+function getMetadataCoverUrl(metadata) {
+    if (!metadata)
+        return "";
+    let candidates = [
+        metadata.artUrl,
+        metadata.coverUrl,
+        metadata.cover_url,
+        metadata.artworkUrl,
+        metadata.image
+    ];
+    for (let candidate of candidates) {
+        let url = normalizeMetadataText(candidate);
+        if (url)
+            return url;
+    }
+    return "";
+}
+function getNowPlaying(server) {
+    if (!server || !server.streams || server.streams.length === 0)
+        return null;
+    let scored = [];
+    for (let stream of server.streams) {
+        let metadata = stream.metadata || {};
+        let title = normalizeMetadataText(metadata.title || metadata.track || metadata.name);
+        let artist = normalizeMetadataText(metadata.artist || metadata.albumArtist || metadata.performer);
+        let album = normalizeMetadataText(metadata.album);
+        let artUrl = getMetadataCoverUrl(metadata);
+        let hasMetadata = title !== "" || artist !== "" || album !== "" || artUrl !== "";
+        let score = 0;
+        if (stream.status === "playing")
+            score += 100;
+        if (String(stream.id || "").toLowerCase().includes("spotify"))
+            score += 40;
+        if (hasMetadata)
+            score += 20;
+        scored.push({ stream, title, artist, album, artUrl, hasMetadata, score });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0];
+}
+function buildStreamMetadataView(stream) {
+    let metadata = stream.metadata || {};
+    let title = normalizeMetadataText(metadata.title || metadata.track || metadata.name);
+    let artist = normalizeMetadataText(metadata.artist || metadata.albumArtist || metadata.performer);
+    let album = normalizeMetadataText(metadata.album);
+    let artUrl = getMetadataCoverUrl(metadata);
+    let hasMetadata = title !== "" || artist !== "" || album !== "" || artUrl !== "";
+    return { title, artist, album, artUrl, hasMetadata };
+}
 function show() {
     // Render the page
     const versionElem = document.getElementsByTagName("meta").namedItem("version");
@@ -443,6 +544,7 @@ function show() {
     content += "</div>";
     content += "<div class='content'>";
     let server = snapcontrol.server;
+    let nowPlaying = getNowPlaying(server);
     let streamOptionsFor = (selectedId) => {
         let html = "";
         for (let s of server.streams) {
@@ -451,15 +553,64 @@ function show() {
         }
         return html;
     };
+    if (nowPlaying) {
+        content += "<div class='now-playing-card'>";
+        if (nowPlaying.artUrl) {
+            content += "<img class='now-playing-art' src='" + escapeHtml(nowPlaying.artUrl) + "' alt='Cover art'>";
+        }
+        else {
+            content += "<div class='now-playing-art now-playing-art-fallback' aria-hidden='true'>&#9835;</div>";
+        }
+        content += "<div class='now-playing-content'>";
+        content += "<div class='now-playing-kicker'>Now Playing - " + escapeHtml(nowPlaying.stream.id) + "</div>";
+        content += "<div class='now-playing-title'>" + escapeHtml(nowPlaying.title || "No track metadata yet") + "</div>";
+        content += "<div class='now-playing-subtitle'>" + escapeHtml(nowPlaying.artist || "Waiting for stream metadata") + "</div>";
+        if (nowPlaying.album) {
+            content += "<div class='now-playing-album'>" + escapeHtml(nowPlaying.album) + "</div>";
+        }
+        content += "</div>";
+        content += "</div>";
+    }
     content += "<div class='stream-overview'>";
     content += "<div class='stream-overview-title'>Streams</div>";
     for (let s of snapcontrol.server.streams) {
         let sClass = (s.status === "playing") ? "stream-pill playing" : "stream-pill";
         content += "<span class='" + sClass + "'>" + s.id + ": " + s.status + "</span>";
+        let streamMeta = buildStreamMetadataView(s);
+        if (streamMeta.hasMetadata) {
+            content += "<div class='stream-meta-card'>";
+            if (streamMeta.artUrl) {
+                content += "<img class='stream-meta-art' src='" + escapeHtml(streamMeta.artUrl) + "' alt='Stream cover art'>";
+            }
+            else {
+                content += "<div class='stream-meta-art stream-meta-art-fallback' aria-hidden='true'>&#9835;</div>";
+            }
+            content += "<div class='stream-meta-body'>";
+            content += "<div class='stream-meta-title'>" + escapeHtml(streamMeta.title || "Unknown title") + "</div>";
+            if (streamMeta.artist) {
+                content += "<div class='stream-meta-artist'>" + escapeHtml(streamMeta.artist) + "</div>";
+            }
+            if (streamMeta.album) {
+                content += "<div class='stream-meta-album'>" + escapeHtml(streamMeta.album) + "</div>";
+            }
+            content += "</div>";
+            content += "</div>";
+        }
     }
     content += "</div>";
+    let staleClientCount = 0;
+    for (let g of server.groups) {
+        for (let c of g.clients) {
+            if (!c.connected) {
+                staleClientCount += 1;
+            }
+        }
+    }
     content += "<div class='groupings-panel'>";
-    content += "  <div class='groupings-title'>Existing Groupings</div>";
+    content += "  <div class='groupings-head'>";
+    content += "    <div class='groupings-title'>Existing Groupings</div>";
+    content += "    <button class='grouping-prune-btn' onclick='pruneStaleClients()'>Prune Stale (" + staleClientCount + ")</button>";
+    content += "  </div>";
     for (let i = 0; i < server.groups.length; i++) {
         let g = server.groups[i];
         let gName = g.name && g.name !== "" ? g.name : ("Group " + (i + 1));
@@ -477,7 +628,9 @@ function show() {
         content += "    </div>";
         content += "    <div class='grouping-actions'>";
         content += "      <button class='grouping-action-btn' onclick=\"ungroupAllClients('" + g.id + "')\">Ungroup All</button>";
-        content += "      <button class='grouping-action-btn grouping-action-danger' onclick=\"dissolveGroup('" + g.id + "')\">Dissolve Group</button>";
+        if (g.clients.length > 1) {
+            content += "      <button class='grouping-action-btn grouping-action-danger' onclick=\"dissolveGroup('" + g.id + "')\">Dissolve Group</button>";
+        }
         content += "    </div>";
         content += "  </div>";
     }
@@ -811,25 +964,50 @@ function dissolveGroup(group_id) {
     let group = snapcontrol.getGroup(group_id);
     if (!group)
         return;
+    if (group.clients.length <= 1) {
+        return;
+    }
     if (!confirm("Dissolve this group into individual client groups?")) {
         return;
     }
-    if (group.clients.length <= 1) {
-        alert("This group has only one client. Nothing to dissolve.");
-        return;
-    }
-    // Move clients one-by-one to avoid race conditions.
-    let clientIds = group.clients.map((c) => c.id);
-    let idx = 1;
-    let step = function () {
+    var originalStreamId = group.stream_id;
+    var originalGroupId = group.id;
+    var clientIds = group.clients.map((c) => c.id);
+    var idx = 1;
+    function step() {
         if (idx >= clientIds.length) {
             snapcontrol.status_req_id = snapcontrol.sendRequest('Server.GetStatus');
             return;
         }
-        setGroup(clientIds[idx], "new");
-        idx += 1;
-        setTimeout(step, 450);
-    };
+        var clientId = clientIds[idx];
+        setGroup(clientId, "new");
+        var attemptsLeft = 15;
+        function applyStreamThenNext() {
+            snapcontrol.status_req_id = snapcontrol.sendRequest('Server.GetStatus');
+            setTimeout(function () {
+                try {
+                    var updatedGroup = snapcontrol.getGroupFromClient(clientId);
+                    var detached = updatedGroup.id !== originalGroupId;
+                    if (detached) {
+                        if (originalStreamId) {
+                            snapcontrol.setStream(updatedGroup.id, originalStreamId);
+                        }
+                        idx += 1;
+                        setTimeout(step, 350);
+                        return;
+                    }
+                } catch (_) { }
+                attemptsLeft -= 1;
+                if (attemptsLeft <= 0) {
+                    snapcontrol.status_req_id = snapcontrol.sendRequest('Server.GetStatus');
+                    alert("Dissolve timed out. Please retry.");
+                    return;
+                }
+                setTimeout(applyStreamThenNext, 200);
+            }, 180);
+        }
+        applyStreamThenNext();
+    }
     step();
 }
 function setGroup(client_id, group_id) {
@@ -975,6 +1153,35 @@ function deleteClient(id) {
     if (confirm('Are you sure?')) {
         snapcontrol.deleteClient(id);
     }
+}
+function pruneStaleClients() {
+    let staleIds = [];
+    for (let group of snapcontrol.server.groups) {
+        for (let client of group.clients) {
+            if (!client.connected) {
+                staleIds.push(client.id);
+            }
+        }
+    }
+    if (staleIds.length === 0) {
+        alert("No stale clients to prune.");
+        return;
+    }
+    if (!confirm("Prune " + staleIds.length + " stale client(s)?")) {
+        return;
+    }
+    let idx = 0;
+    let step = function () {
+        if (idx >= staleIds.length) {
+            snapcontrol.status_req_id = snapcontrol.sendRequest('Server.GetStatus');
+            alert("Pruned " + staleIds.length + " stale client(s).");
+            return;
+        }
+        snapcontrol.sendRequest('Server.DeleteClient', { id: staleIds[idx] });
+        idx += 1;
+        setTimeout(step, 120);
+    };
+    step();
 }
 window.onload = function () {
     snapcontrol = new SnapControl(config.baseUrl);
