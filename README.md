@@ -13,13 +13,45 @@
 [![GitHub Downloads](https://img.shields.io/github/downloads/badaix/snapcast/total)](https://github.com/badaix/snapcast/releases)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/badaix)
 
-Snapcast is a multiroom client-server audio player, where all clients are time synchronized with the server to play perfectly synced audio. It's not a standalone player, but an extension that turns your existing audio player into a Sonos-like multiroom solution.  
-Audio is captured by the server and routed to the connected clients. Several players can feed audio to the server in parallel and clients can be grouped to play the same audio stream.  
-One of the most generic ways to use Snapcast is in conjunction with the music player daemon ([MPD](http://www.musicpd.org/)) or [Mopidy](https://www.mopidy.com/).
+Snapcast is a multi-room client/server audio system where all clients are time-synchronized to the server for perfectly aligned playback.
+It is not a standalone music player; it extends your existing player stack (e.g. MPD, Mopidy, AirPlay, Spotify bridges) into a Sonos-like synchronized setup.
+
+Audio is captured by `snapserver` and routed to connected `snapclient` instances.
+Multiple sources can feed the server in parallel, and clients can be grouped to play the same stream.
+
+## Table of Contents
+
+- [How It Works](#how-it-works)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Control](#control)
+- [Setup of Audio Players and Server](#setup-of-audio-players-and-server)
+- [Roadmap](#roadmap)
+
+## Rezon8 Fork Notes
+
+This repository is used as a customized Snapcast fork (`MrTiptop/Rezon8`) and includes additional project assets such as:
+
+- Docker testbed for Snapweb UI iteration (`docker/snapcast-test/`)
+- Rezon8-branded Snapweb customization and UX experiments
+- DietPi/Snapcast upgrade and deployment helper scripts (`scripts/`)
+
+Upstream Snapcast remains the core baseline, and fork-specific features are layered on top.
+
+### Follow Me Integration (Pi / non-Docker Snapweb)
+
+The redesigned Follow Me toggle can be deployed into a live Snapweb doc_root using:
+
+```bash
+sudo ./scripts/deploy_follow_me_snapweb_overlay.sh --target-root /usr/share/snapserver/snapweb --api-base http://<snapserver-ip>:8765 --restart
+```
+
+This copies the UI overlay files (`config.js`, `snapcontrol.js`, `styles.css`) and optionally points the toggle to the Follow Me control API.
 
 ![Overview](doc/Overview.png)
 
-## How does it work
+## How It Works
 
 The Snapserver reads PCM chunks from configurable stream sources:
 
@@ -38,11 +70,31 @@ The chunks are encoded and tagged with the local time. Supported codecs are:
 
 The encoded chunks are sent via a TCP connection to the Snapclients.
 Each client does continuous time synchronization with the server, so that the client is always aware of the local server time.
-Every received chunk is first decoded and added to the client's chunk-buffer. Knowing the server's time, the chunk is played out using a system dependend low level audio API (e.g. ALSA) at the appropriate time. Time deviations are corrected by playing faster/slower, which is done by removing/duplicating single samples (a sample at 48kHz has a duration of ~0.02ms).
+Every received chunk is first decoded and added to the client's chunk-buffer. Knowing the server's time, the chunk is played using a system-dependent low-level audio API (e.g. ALSA) at the appropriate time. Time deviations are corrected by playing faster/slower, which is done by removing/duplicating single samples (a sample at 48kHz has a duration of ~0.02ms).
 
 Typically the deviation is below 0.2ms.
 
 For more information on the binary protocol, please see the [documentation](doc/binary_protocol.md).
+
+## Quick Start
+
+### A) Standard Snapcast install (recommended)
+
+Install from packages for your distro and configure streams in `/etc/snapserver.conf`.
+See [Installation](#installation) and [Configuration](#configuration).
+
+### B) Rezon8 UX testbed (Docker)
+
+Run the local test stack from repo root:
+
+```bash
+docker-compose -f docker-compose.snapcast-test.yml up -d --build
+```
+
+Then open:
+
+- Snapweb: `http://localhost:1780`
+- JSON-RPC (HTTP): `http://localhost:1780/jsonrpc`
 
 ## Installation
 
@@ -127,7 +179,7 @@ Parameters are appended to the player name, e.g. `--player alsa:buffer_time=100`
 For some audio backends you can configure the PCM device using the `-s` or `--soundcard` parameter, the device is chosen by index or name. Available PCM devices can be listed with `-l` or `--list`  
 If you are running MPD and Shairport-sync into a soundcard that only supports 48000 sample rate, you can use `--sampleformat <arg>` and the snapclient will resample the audio from shairport-sync, for example, which is 44100 (i.e.  `--sampleformat 48000:16:*`)
 
-## Test
+## Smoke Test
 
 You can test your installation by copying random data into the server's fifo file
 
@@ -179,7 +231,7 @@ There is an Android client [snapdroid](https://github.com/badaix/snapdroid) avai
 
 ![Snapcast for Android](doc/snapcast_android_scaled.png)
 
-### Contributions
+### Ecosystem and Community Integrations
 
 There is also an unofficial WebApp from @atoomic [atoomic/snapcast-volume-ui](https://github.com/atoomic/snapcast-volume-ui).
 This app lists all clients connected to a server and allows you to control individually the volume of each client.
@@ -199,7 +251,7 @@ A web interface called [HydraPlay](https://github.com/mariolukas/HydraPlay) inte
 
 For Windows, there's [Snap.Net](https://github.com/stijnvdb88/snap.net), a control client and player. It runs in the tray and lets you adjust client volumes with just a few clicks. The player simplifies setting up snapclient to play your music through multiple Windows sound devices simultaneously: pc speakers, hdmi audio, any usb audio devices you may have, etc. Snap.Net also runs on Android, and has limited support for iOS.
 
-## Setup of audio players/server
+## Setup of Audio Players and Server
 
 Snapcast can be used with a number of different audio players and servers, and so it can be integrated into your favorite audio-player solution and make it synced-multiroom capable.
 The only requirement is that the player's audio can be redirected into the Snapserver's fifo `/tmp/snapfifo`. In the following configuration hints for [MPD](http://www.musicpd.org/) and [Mopidy](https://www.mopidy.com/) are given, which are base of other audio player solutions, like [Volumio](https://volumio.org/) or [RuneAudio](http://www.runeaudio.com/) (both MPD).
