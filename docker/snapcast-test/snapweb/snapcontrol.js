@@ -343,33 +343,28 @@ let snapcontrol;
 let snapstream = null;
 let hide_offline = true;
 let autoplay_done = false;
-const FOLLOW_ME_STORAGE_KEY = "rezon8.follow_me_enabled";
-function isFollowMeEnabled() {
-    return window.localStorage.getItem(FOLLOW_ME_STORAGE_KEY) === "1";
-}
-function setFollowMeEnabled(enabled) {
-    window.localStorage.setItem(FOLLOW_ME_STORAGE_KEY, enabled ? "1" : "0");
-    let followMeToggle = document.getElementById("follow-me-toggle");
-    if (followMeToggle) {
-        followMeToggle.checked = enabled;
-    }
-}
-function onFollowMeToggle() {
-    let followMeToggle = document.getElementById("follow-me-toggle");
-    if (!followMeToggle)
-        return;
-    setFollowMeEnabled(followMeToggle.checked);
-}
 function autoplayRequested() {
     return document.location.hash.match(/autoplay/) !== null;
 }
 function escapeHtml(value) {
-    return String(value ?? "")
+    return String(value == null ? "" : value)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
+}
+function normalizeArtUrl(url) {
+    if (!url)
+        return "";
+    // Some streams expose artUrl with the server hostname (e.g. "Outdoor"),
+    // which might not resolve on mobile clients. Rebase Snapserver cache URLs
+    // to the current origin host so album art loads consistently.
+    let snapCachePos = url.indexOf("/__image_cache");
+    if (snapCachePos >= 0) {
+        return window.location.protocol + "//" + window.location.host + url.substring(snapCachePos);
+    }
+    return url;
 }
 function normalizeMetadataText(value) {
     if (Array.isArray(value))
@@ -391,7 +386,7 @@ function getMetadataCoverUrl(metadata) {
     for (let candidate of candidates) {
         let url = normalizeMetadataText(candidate);
         if (url)
-            return url;
+            return normalizeArtUrl(url);
     }
     return "";
 }
@@ -442,10 +437,6 @@ function show() {
     content += "<div class='navbar'>";
     content += "  <div class='navbar-left'>Rezon<img src='8-ball_6262.png' class='eight-ball' id='eight-ball' /></div>";
     content += "  <div class='navbar-actions'>";
-    content += "    <span class='follow-toggle-wrap'>";
-    content += "      <label class='follow-toggle-label' for='follow-me-toggle'>Follow Me</label>";
-    content += "      <input type='checkbox' id='follow-me-toggle' class='follow-toggle' onchange='onFollowMeToggle()'>";
-    content += "    </span>";
     let serverVersion = snapcontrol.server.server.snapserver.version.split('.');
     if ((serverVersion.length >= 2) && (+serverVersion[1] >= 21)) {
         content += "    <img src='" + play_img + "' class='play-button' id='play-button' />";
@@ -471,7 +462,8 @@ function show() {
     if (nowPlaying) {
         content += "<div class='now-playing-card'>";
         if (nowPlaying.artUrl) {
-            content += "<img class='now-playing-art' src='" + escapeHtml(nowPlaying.artUrl) + "' alt='Cover art'>";
+            content += "<img class='now-playing-art' src='" + escapeHtml(nowPlaying.artUrl) + "' alt='Cover art' onerror=\"this.style.display='none';if(this.nextElementSibling){this.nextElementSibling.style.display='flex';}\">";
+            content += "<div class='now-playing-art now-playing-art-fallback now-playing-art-fallback-hidden' aria-hidden='true'>&#9835;</div>";
         }
         else {
             content += "<div class='now-playing-art now-playing-art-fallback' aria-hidden='true'>&#9835;</div>";
@@ -495,7 +487,8 @@ function show() {
         if (streamMeta.hasMetadata) {
             content += "<div class='stream-meta-card'>";
             if (streamMeta.artUrl) {
-                content += "<img class='stream-meta-art' src='" + escapeHtml(streamMeta.artUrl) + "' alt='Stream cover art'>";
+                content += "<img class='stream-meta-art' src='" + escapeHtml(streamMeta.artUrl) + "' alt='Stream cover art' onerror=\"this.style.display='none';if(this.nextElementSibling){this.nextElementSibling.style.display='flex';}\">";
+                content += "<div class='stream-meta-art stream-meta-art-fallback stream-meta-art-fallback-hidden' aria-hidden='true'>&#9835;</div>";
             }
             else {
                 content += "<div class='stream-meta-art stream-meta-art-fallback' aria-hidden='true'>&#9835;</div>";
@@ -715,7 +708,6 @@ function show() {
             play();
         };
     }
-    setFollowMeEnabled(isFollowMeEnabled());
     for (let group of snapcontrol.server.groups) {
         if (group.clients.length > 1) {
             let slider = document.getElementById("vol_" + group.id);

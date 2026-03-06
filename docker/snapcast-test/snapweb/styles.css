@@ -433,30 +433,6 @@ body {
     }
 }
 
-.follow-toggle-wrap {
-    position: absolute;
-    right: 70px;
-    top: 18px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.14);
-}
-
-.follow-toggle-label {
-    font-size: 14px;
-    color: #f7f7f7;
-    opacity: 0.95;
-}
-
-.follow-toggle {
-    width: 18px;
-    height: 18px;
-    accent-color: #ff4081;
-    cursor: pointer;
-}
 
 .stream-overview {
     margin: 4px 10px 12px;
@@ -511,6 +487,10 @@ body {
     justify-content: center;
     color: rgba(255, 255, 255, 0.8);
     font-size: 18px;
+}
+
+.stream-meta-art-fallback-hidden {
+    display: none;
 }
 
 .stream-meta-title {
@@ -630,11 +610,6 @@ body {
     padding-right: 36px;
 }
 
-.follow-toggle-wrap {
-    position: static;
-    padding: 6px 10px;
-}
-
 .play-button {
     position: static;
     right: auto;
@@ -650,9 +625,6 @@ body {
 @media (max-width: 768px) {
     .navbar-actions {
         gap: 8px;
-    }
-    .follow-toggle-label {
-        font-size: 12px;
     }
     .play-button {
         width: 34px;
@@ -927,6 +899,10 @@ body {
     justify-content: center;
     font-size: 26px;
     color: rgba(255, 255, 255, 0.8);
+}
+
+.now-playing-art-fallback-hidden {
+    display: none;
 }
 
 .now-playing-kicker {
