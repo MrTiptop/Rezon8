@@ -514,6 +514,12 @@ function scheduleIdleMetadataRefresh(server) {
         idleMetadataRefreshTimer = setTimeout(() => show(), nextDelayMs + 60);
     }
 }
+function isPrunableStaleClient(client) {
+    if (!client || client.connected)
+        return false;
+    let id = String(client.id == null ? "" : client.id).trim();
+    return id.length > 0;
+}
 function getNowPlaying(server) {
     if (!server || !server.streams || server.streams.length === 0)
         return null;
@@ -649,7 +655,7 @@ function show() {
     let staleClientCount = 0;
     for (let g of server.groups) {
         for (let c of g.clients) {
-            if (!c.connected) {
+            if (isPrunableStaleClient(c)) {
                 staleClientCount += 1;
             }
         }
@@ -1241,7 +1247,7 @@ function pruneStaleClients() {
     let staleIds = [];
     for (let group of snapcontrol.server.groups) {
         for (let client of group.clients) {
-            if (!client.connected) {
+            if (isPrunableStaleClient(client)) {
                 staleIds.push(client.id);
             }
         }
