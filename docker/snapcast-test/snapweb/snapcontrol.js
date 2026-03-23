@@ -566,6 +566,25 @@ function buildStreamMetadataView(stream) {
     let hasMetadata = title !== "" || artist !== "" || album !== "" || artUrl !== "";
     return { title, artist, album, artUrl, hasMetadata };
 }
+function resizeAttachStreamSelect(selectElem) {
+    if (!selectElem)
+        return;
+    // Keep touch-device layout stable in portrait + landscape by letting CSS control width.
+    if (window.matchMedia("(max-width: 768px), (hover: none) and (pointer: coarse)").matches) {
+        selectElem.style.width = "";
+        return;
+    }
+    let selectedOption = selectElem.options[selectElem.selectedIndex];
+    let selectedText = selectedOption ? String(selectedOption.text || "") : "";
+    let widthCh = Math.max(14, Math.min(48, selectedText.length + 3));
+    selectElem.style.width = widthCh + "ch";
+}
+function resizeAllAttachStreamSelects() {
+    let selects = document.querySelectorAll(".client-stream-select");
+    for (let selectElem of selects) {
+        resizeAttachStreamSelect(selectElem);
+    }
+}
 function show() {
     // Render the page
     const versionElem = document.getElementsByTagName("meta").namedItem("version");
@@ -794,7 +813,7 @@ function show() {
             content += "    <div class='name' onclick=\"openClientSettings('" + client.id + "')\">" + name + "</div>";
             content += "    <div class='client-stream-attach'>";
             content += "      <label class='client-stream-label' for='attach_stream_" + client.id + "'>Attach Source</label>";
-            content += "      <select id='attach_stream_" + client.id + "' class='client-stream-select'>";
+            content += "      <select id='attach_stream_" + client.id + "' class='client-stream-select' onchange='resizeAttachStreamSelect(this)'>";
             content += streamOptionsFor(group.stream_id);
             content += "      </select>";
             content += "      <button class='client-attach-btn' onclick=\"attachClientToStream('" + client.id + "')\">Attach</button>";
@@ -848,6 +867,7 @@ function show() {
     // Pad then update page
     content = content + "<br><br>";
     document.getElementById('show').innerHTML = content;
+    resizeAllAttachStreamSelects();
     let playElem = document.getElementById('play-button');
     if (playElem) {
         let onPlayTap = (ev) => {

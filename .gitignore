@@ -70,3 +70,6 @@ certs
 server/etc/certs
 
 extras/package/debian/snap*.debhelper.log
+
+# local deployment secrets
+scripts/.env.dietpi.local

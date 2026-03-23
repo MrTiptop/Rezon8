@@ -433,6 +433,27 @@ body {
     }
 }
 
+@media (hover: none) and (pointer: coarse) {
+    .client-stream-attach {
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: 6px;
+        padding-left: 0;
+    }
+    .client-stream-label {
+        width: 100%;
+    }
+    .client-stream-select {
+        flex: 1 1 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+    .client-attach-btn,
+    .client-ungroup-btn {
+        flex: 1 1 calc(50% - 3px);
+    }
+}
+
 
 .stream-overview {
     margin: 4px 10px 12px;
@@ -931,6 +952,24 @@ body {
 }
 
 @media (max-width: 768px) {
+    .client-stream-attach {
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: 6px;
+        padding-left: 0;
+    }
+    .client-stream-label {
+        width: 100%;
+    }
+    .client-stream-select {
+        flex: 1 1 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+    .client-attach-btn,
+    .client-ungroup-btn {
+        flex: 1 1 calc(50% - 3px);
+    }
     .now-playing-card {
         grid-template-columns: 68px 1fr;
         gap: 10px;
