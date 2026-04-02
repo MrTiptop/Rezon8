@@ -10,6 +10,7 @@ LABEL org.rezon8.stream_source.librespot="${LIBRESPOT_VERSION}" \
 RUN rm -rf /var/lib/apt/lists/* && apt-get -o Acquire::Retries=5 -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true update && apt-get install -y --allow-unauthenticated --fix-missing --no-install-recommends \
     ca-certificates \
     curl \
+    ffmpeg \
     jq \
     snapclient \
     snapserver \
