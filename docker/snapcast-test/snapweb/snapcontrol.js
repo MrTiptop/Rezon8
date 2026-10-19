@@ -1,3 +1,4 @@
+// MrTiptop
 "use strict";
 class Host {
     constructor(json) {
@@ -343,6 +344,15 @@ let snapstream = null;
 let hide_offline = true;
 let autoplay_done = false;
 let lastPlayToggleTs = 0;
+// "idle" | "pressing" | "ok" | "error"; kept outside show() because show() rebuilds the navbar.
+let ampButtonState = "idle";
+let ampButtonResetTimer = null;
+const AMP_SERVO_URL = "http://" + window.location.hostname + ":8099/press";
+const AMP_ICON_HTML = "<svg viewBox='0 0 24 24' aria-hidden='true' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'>" +
+    "<path d='M7.05 6.5a7.5 7.5 0 1 0 9.9 0'/>" +
+    "<line x1='12' y1='3' x2='12' y2='11.5'/>" +
+    "</svg>" +
+    "<span class='amp-label' aria-hidden='true'>AMP</span>";
 let pendingWebAttachStreamId = null;
 let pendingWebAttachAttempts = 0;
 const STREAM_METADATA_IDLE_TIMEOUT_MS = 30000;
@@ -600,6 +610,7 @@ function show() {
     content += "<div class='navbar'>";
     content += "  <div class='navbar-left'>Rezon<img src='8-ball_6262.png' class='eight-ball' id='eight-ball' /></div>";
     content += "  <div class='navbar-actions'>";
+    content += "    <button type='button' class='amp-button amp-" + ampButtonState + "' id='amp-button' title='Amplifier power' aria-label='Amplifier power'>" + AMP_ICON_HTML + "</button>";
     let serverVersion = snapcontrol.server.server.snapserver.version.split('.');
     if ((serverVersion.length >= 2) && (+serverVersion[1] >= 21)) {
         content += "    <img src='" + play_img + "' class='play-button' id='play-button' />";
@@ -882,6 +893,9 @@ function show() {
         playElem.onclick = onPlayTap;
         playElem.ontouchstart = onPlayTap;
     }
+    let ampElem = document.getElementById('amp-button');
+    if (ampElem)
+        ampElem.onclick = pressAmpPower;
     maybeAutoAttachCurrentWebClient();
     for (let group of snapcontrol.server.groups) {
         if (group.clients.length > 1) {
@@ -953,6 +967,33 @@ function setVolume(id, mute) {
     updateGroupVolume(group);
     if (needs_update)
         show();
+}
+function setAmpButtonState(state) {
+    ampButtonState = state;
+    let ampElem = document.getElementById('amp-button');
+    if (ampElem)
+        ampElem.className = "amp-button amp-" + state;
+    if (ampButtonResetTimer)
+        clearTimeout(ampButtonResetTimer);
+    ampButtonResetTimer = (state === "ok" || state === "error")
+        ? setTimeout(() => setAmpButtonState("idle"), 2500)
+        : null;
+}
+function pressAmpPower(ev) {
+    if (ev)
+        ev.preventDefault();
+    if (ampButtonState === "pressing")
+        return;
+    setAmpButtonState("pressing");
+    fetch(AMP_SERVO_URL, { method: 'POST' })
+        .then((res) => {
+            // 409: a press is already running, so the arm is moving anyway.
+            setAmpButtonState((res.ok || res.status === 409) ? "ok" : "error");
+        })
+        .catch((err) => {
+            console.warn("Amp servo request failed: " + err);
+            setAmpButtonState("error");
+        });
 }
 function play() {
     try {
