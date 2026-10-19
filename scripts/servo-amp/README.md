@@ -2,7 +2,7 @@
 # Amplifier power switch servo
 
 A hobby servo on the Snapcast DietPi (`DIETPI_HOST` in `scripts/.env.dietpi.local`, a Pi 3B+)
-presses the amplifier's power button: it swings ~35° right of centre, holds for 0.5 s, returns to
+presses the amplifier's power button: it swings ~50° clockwise from centre, holds for 0.5 s, returns to
 centre and releases. snapweb can trigger it through a small HTTP service on port 8099.
 
 The pulses are timed in software on a plain GPIO (lgpio). The Pi's hardware PWM is never used,
@@ -46,7 +46,7 @@ servo's 3-pin plug order does not match the header. Any free GPIO works if `GPIO
 2. With the arm free: `pi-servo.py pulse 1500 1` should centre the arm, hold it for a second and
    release it.
 3. Mounted at the amplifier, tune `PRESS_US` in `/etc/default/servo-amp` until it presses the button
-   firmly without straining (about 110 µs per 10°; lower values turn right on the EK2-0508), then
+   firmly without straining (about 110 µs per 10°; lower values turn clockwise on the EK2-0508), then
    run `pi-servo.py press`.
 4. From another machine: `curl -X POST http://<pi>:8099/press`.
 

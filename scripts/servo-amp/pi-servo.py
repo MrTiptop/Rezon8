@@ -26,10 +26,10 @@ HARD_MIN_US, HARD_MAX_US = 500, 2500
 DEFAULTS = {
     "GPIOCHIP": 0,
     "GPIO": 12,
-    "MIN_US": 1000,
+    "MIN_US": 900,
     "MAX_US": 2000,
     "REST_US": 1500,
-    "PRESS_US": 1110,
+    "PRESS_US": 950,
     "HOLD_MS": 500,
     "SETTLE_MS": 400,
 }
