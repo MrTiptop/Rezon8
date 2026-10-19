@@ -1,0 +1,12 @@
+# MrTiptop / Robbie De Wet - amplifier power switch servo
+# Copy to /etc/default/servo-amp. Pulse widths in microseconds; about 11 us per degree.
+# Plain GPIO with software pulses (lgpio): GPIO12 is header pin 32. Pi 3/4 use gpiochip 0.
+GPIOCHIP=0
+GPIO=12
+MIN_US=1000
+MAX_US=2000
+REST_US=1500
+# ~35 degrees right of centre (higher values turn left on the EK2-0508)
+PRESS_US=1110
+HOLD_MS=500
+SETTLE_MS=400
