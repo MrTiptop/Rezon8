@@ -134,17 +134,48 @@ class SnapControl {
         this.baseUrl = baseUrl;
         this.msg_id = 0;
         this.status_req_id = -1;
+        this.reconnectTimer = null;
+        this.resyncWatchdog = null;
         this.connect();
     }
     connect() {
-        this.connection = new WebSocket(this.baseUrl + '/jsonrpc');
-        this.connection.onmessage = (msg) => this.onMessage(msg.data);
-        this.connection.onopen = () => { this.status_req_id = this.sendRequest('Server.GetStatus'); };
-        this.connection.onerror = (ev) => { console.error('error:', ev); };
-        this.connection.onclose = () => {
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+        let connection = new WebSocket(this.baseUrl + '/jsonrpc');
+        this.connection = connection;
+        connection.onmessage = (msg) => this.onMessage(msg.data);
+        connection.onopen = () => { this.status_req_id = this.sendRequest('Server.GetStatus'); };
+        connection.onerror = (ev) => { console.error('error:', ev); };
+        connection.onclose = () => {
+            // A socket replaced by resync() must not schedule a second reconnect.
+            if (connection !== this.connection || this.reconnectTimer)
+                return;
             console.info('connection lost, reconnecting in 1s');
-            setTimeout(() => this.connect(), 1000);
+            this.reconnectTimer = setTimeout(() => this.connect(), 1000);
         };
+    }
+    // One-off full refresh, e.g. when a phone wakes the page. Mobile browsers can leave a
+    // socket looking open after sleep or a network change while no notifications arrive.
+    resync() {
+        let state = this.connection ? this.connection.readyState : WebSocket.CLOSED;
+        if (state === WebSocket.CONNECTING)
+            return;
+        if (state !== WebSocket.OPEN) {
+            this.connect();
+            return;
+        }
+        this.status_req_id = this.sendRequest('Server.GetStatus');
+        if (this.resyncWatchdog)
+            clearTimeout(this.resyncWatchdog);
+        this.resyncWatchdog = setTimeout(() => {
+            this.resyncWatchdog = null;
+            console.info('no answer to resync, reconnecting');
+            this.connection.onclose = null;
+            this.connection.close();
+            this.connect();
+        }, 4000);
     }
     mergeStreamProperties(targetServer, previousServer) {
         if (!targetServer || !targetServer.streams || !previousServer || !previousServer.streams)
@@ -190,7 +221,8 @@ class SnapControl {
                 this.getStream(answer.params.id).fromJson(answer.params.stream);
                 break;
             case 'Stream.OnProperties':
-                this.getStream(answer.params.id).updateProperties(answer.params);
+                // Snapserver sends {id, properties: {...}}; older docs show the properties inline.
+                this.getStream(answer.params.id).updateProperties(answer.params.properties || answer.params);
                 break;
             case 'Server.OnUpdate':
                 let previousServer = this.server;
@@ -313,6 +345,10 @@ class SnapControl {
         return this.msg_id;
     }
     onMessage(msg) {
+        if (this.resyncWatchdog) {
+            clearTimeout(this.resyncWatchdog);
+            this.resyncWatchdog = null;
+        }
         let answer = JSON.parse(msg);
         let is_response = (answer.id != undefined);
         console.log("Received " + (is_response ? "response" : "notification") + ", json: " + JSON.stringify(answer));
@@ -325,14 +361,20 @@ class SnapControl {
             }
         }
         else {
-            if (Array.isArray(answer)) {
-                for (let a of answer) {
+            let notifications = Array.isArray(answer) ? answer : [answer];
+            let needsResync = false;
+            for (let a of notifications) {
+                try {
                     this.action(a);
                 }
+                catch (err) {
+                    // Usually a client, group or stream this page has not seen yet.
+                    console.warn("Could not apply " + a.method + ", fetching full status: " + err);
+                    needsResync = true;
+                }
             }
-            else {
-                this.action(answer);
-            }
+            if (needsResync)
+                this.status_req_id = this.sendRequest('Server.GetStatus');
             // TODO: don't update everything, but only the changed, 
             // e.g. update the values for the volume sliders
             show();
@@ -1336,6 +1378,22 @@ function pruneStaleClients() {
 window.onload = function () {
     snapcontrol = new SnapControl(config.baseUrl);
 };
+let pageWasHidden = document.hidden;
+function resyncIfVisible() {
+    if (snapcontrol && !document.hidden)
+        snapcontrol.resync();
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        pageWasHidden = true;
+    }
+    else if (pageWasHidden) {
+        pageWasHidden = false;
+        resyncIfVisible();
+    }
+});
+window.addEventListener('pageshow', (ev) => { if (ev.persisted) resyncIfVisible(); });
+window.addEventListener('online', resyncIfVisible);
 // When the user clicks anywhere outside of the modal, close it
 window.onclick = function (event) {
     let clientModal = document.getElementById("client-settings");
