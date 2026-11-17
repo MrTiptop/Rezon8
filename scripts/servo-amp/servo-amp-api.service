@@ -1,0 +1,12 @@
+# MrTiptop / Robbie De Wet
+[Unit]
+Description=Amplifier servo HTTP trigger (POST :8099/press)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/servo-amp-api.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

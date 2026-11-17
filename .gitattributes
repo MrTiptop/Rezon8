@@ -1,0 +1,9 @@
+# MrTiptop
+# Prefer our fork copies when both sides change these paths during a local merge.
+# Requires: git config merge.ours.driver true  (set by scripts/sync-from-upstream.sh)
+README.md merge=ours
+doc/rezon8_mark.png merge=ours
+doc/screenshots/** merge=ours
+docker/snapcast-test/** merge=ours
+scripts/** merge=ours
+docker-compose.snapcast-test.yml merge=ours
