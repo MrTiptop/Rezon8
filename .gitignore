@@ -66,6 +66,8 @@ compile_commands.json
 notes.txt
 sanitizer-suppressions.txt
 snapserver.conf
+!docker/snapcast-test/snapserver.conf
+!docker/snapcast-test/live-pi/snapserver.conf
 certs
 server/etc/certs
 

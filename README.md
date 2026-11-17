@@ -54,11 +54,24 @@ Core of this repository: `snapserver` + `snapclient`, groups/zones, JSON-RPC con
 
 ### AirPlay (shairport-sync)
 
-Snapcast’s `airplay://` source launches [shairport-sync](https://github.com/mikebrady/shairport-sync) so iPhones/Macs can AirPlay to a device named **Rezon8**. The binary must be installed on the Snapserver host; Rezon8 does not vendor it. Version tracking for test images: [`docker/snapcast-test/stream-sources.versions.json`](docker/snapcast-test/stream-sources.versions.json). Upstream stream docs: [Configuration — airplay](doc/configuration.md#airplay).
+Snapcast’s `airplay://` source launches [shairport-sync](https://github.com/mikebrady/shairport-sync) (stdout build) so iPhones/Macs can AirPlay to **Rezon8**. Upstream stream docs: [Configuration — airplay](doc/configuration.md#airplay).
 
 ### Spotify Connect (librespot)
 
-Same pattern with `librespot://` and [librespot](https://github.com/librespot-org/librespot) as device **Rezon8**. Install the binary on the host; configure via `snapserver.conf`. Upstream: [Configuration — librespot](doc/configuration.md#librespot).
+Same pattern with `librespot://` and [librespot](https://github.com/librespot-org/librespot) as device **Rezon8**. Upstream: [Configuration — librespot](doc/configuration.md#librespot).
+
+### Keeping stream-source versions current
+
+Pins live in [`docker/snapcast-test/stream-sources.versions.json`](docker/snapcast-test/stream-sources.versions.json) (`librespot`, `shairport-sync`).
+
+| How | What it does |
+| --- | --- |
+| Weekly CI (Mondays) + manual | [`.github/workflows/update-stream-sources.yml`](.github/workflows/update-stream-sources.yml) refreshes pins, builds the Docker image **with those binaries installed**, verifies them, opens a PR |
+| Local refresh | `python3 scripts/update_stream_sources_versions.py` |
+| Install on this machine | `sudo ./scripts/install_stream_sources.sh` |
+| Upgrade DietPi host | `./scripts/upgrade_dietpi_stream_sources.sh --restart` |
+
+The Docker Snapweb testbed builds the same pinned binaries into the image (not labels-only).
 
 ### DJ Live Stream (separate repo)
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
-# Robbie De Wet
+# MrTiptop
 set -eu
 
-for fifo in /tmp/snapfifo /tmp/airplay_fifo /tmp/librespot_fifo /tmp/dummy_fifo; do
+for fifo in /tmp/snapfifo /tmp/dummy_fifo; do
   if [ ! -p "${fifo}" ]; then
     mkfifo "${fifo}"
   fi
@@ -14,6 +14,10 @@ done
     dd if=/dev/zero bs=1920 count=250 2>/dev/null
   done > /tmp/dummy_fifo
 ) &
+
+echo "Stream sources: librespot=$(command -v librespot) shairport-sync=$(command -v shairport-sync)"
+librespot --version 2>/dev/null || true
+shairport-sync -V 2>/dev/null || true
 
 echo "Snapserver starting with custom Snapweb..."
 /usr/bin/snapserver -c /etc/snapserver.conf --logging.sink=stdout &
