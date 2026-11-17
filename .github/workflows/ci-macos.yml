@@ -1,0 +1,31 @@
+# MrTiptop
+# Optional macOS smoke build. Kept out of push CI because GitHub-hosted
+# macOS runners frequently cancel while queued and that was failing CI.
+name: CI macOS
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 5 * * 1"
+
+concurrency:
+  group: ci-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - name: dependencies
+        run: |
+          brew update
+          brew install libsoxr flac libvorbis opus catch2 boost
+      - name: configure
+        run: |
+          cmake -S . -B build \
+            -DWERROR=ON -DBUILD_TESTS=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="-I/usr/local/include -DCMAKE_CXX_FLAGS=-DJSON_HAS_CPP_14"
+      - name: build
+        run: cmake --build build --parallel 3 --verbose
