@@ -1,28 +1,31 @@
+<!-- MrTiptop -->
 # Snapcast Docker Testbed
 
-Use this to test the redesigned Snapweb GUI locally without touching your Raspberry Pi setup.
+Local Snapweb + snapserver with **pinned** `librespot` and `shairport-sync` built from
+[`stream-sources.versions.json`](stream-sources.versions.json).
 
 ## What it provides
-- Builds `snapserver` from this repo.
-- Serves redesigned Snapweb UI from `docker/snapcast-test/snapweb/`.
-- Exposes default Snapcast ports:
-  - `1704` (audio streaming)
-  - `1705` (TCP control)
-  - `1780` (HTTP JSON-RPC + web UI)
+- Builds `snapserver`/`snapclient` from Debian packages into a runtime image
+- Builds and installs `librespot` + `shairport-sync` (stdout) at the pinned tags
+- Serves redesigned Snapweb UI from `docker/snapcast-test/snapweb/`
+- Ports: `1704` (audio), `1705` (TCP control), `1780` (HTTP JSON-RPC + web UI)
 
 ## Start
 ```bash
-docker compose -f docker-compose.snapcast-test.yml up --build
+export LIBRESPOT_VERSION=$(python3 -c "import json;print(json.load(open('docker/snapcast-test/stream-sources.versions.json'))['librespot'])")
+export SHAIRPORT_SYNC_VERSION=$(python3 -c "import json;print(json.load(open('docker/snapcast-test/stream-sources.versions.json'))['shairport-sync'])")
+docker compose -f docker-compose.snapcast-test.yml up --build -d
 ```
 
-Open:
-- `http://localhost:1780`
+Open `http://localhost:1780`
 
 ## Stop
 ```bash
 docker compose -f docker-compose.snapcast-test.yml down
 ```
 
-## Notes
-- The Follow Me toggle in this prototype is a UI-state toggle (stored in browser local storage).
-- Backend integration to your `follow_me_ap_syslog.py` service can be wired in next by adding a tiny control endpoint.
+## Keeping versions current
+- Weekly workflow: `.github/workflows/update-stream-sources.yml` (Mondays + manual)
+- Local refresh: `python3 scripts/update_stream_sources_versions.py`
+- DietPi host upgrade: `./scripts/upgrade_dietpi_stream_sources.sh --restart`
+- Local/host install: `sudo ./scripts/install_stream_sources.sh`

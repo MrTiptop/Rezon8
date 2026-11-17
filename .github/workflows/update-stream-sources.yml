@@ -1,3 +1,4 @@
+# MrTiptop
 name: Update stream source versions
 
 on:
@@ -30,18 +31,31 @@ jobs:
           SHAIRPORT_SYNC_VERSION="$(python3 -c "import json;print(json.load(open('docker/snapcast-test/stream-sources.versions.json'))['shairport-sync'])")"
           echo "LIBRESPOT_VERSION=${LIBRESPOT_VERSION}" >> "${GITHUB_ENV}"
           echo "SHAIRPORT_SYNC_VERSION=${SHAIRPORT_SYNC_VERSION}" >> "${GITHUB_ENV}"
+          echo "Pins: librespot=${LIBRESPOT_VERSION} shairport-sync=${SHAIRPORT_SYNC_VERSION}"
 
-      - name: Build Docker image with pinned source args
+      - name: Build Docker image with pinned stream sources
         run: |
           docker build -f docker/snapcast-test/Dockerfile \
             --build-arg LIBRESPOT_VERSION="${LIBRESPOT_VERSION}" \
             --build-arg SHAIRPORT_SYNC_VERSION="${SHAIRPORT_SYNC_VERSION}" \
             --tag rezon8-snapserver:stream-sources-check .
 
-      - name: Show embedded stream source labels
+      - name: Verify binaries are installed and labeled
         run: |
-          docker inspect rezon8-snapserver:stream-sources-check --format '{{ index .Config.Labels "org.rezon8.stream_source.librespot" }}'
-          docker inspect rezon8-snapserver:stream-sources-check --format '{{ index .Config.Labels "org.rezon8.stream_source.shairport_sync" }}'
+          docker inspect rezon8-snapserver:stream-sources-check \
+            --format '{{ index .Config.Labels "org.rezon8.stream_source.librespot" }}' | tee /tmp/label-librespot
+          docker inspect rezon8-snapserver:stream-sources-check \
+            --format '{{ index .Config.Labels "org.rezon8.stream_source.shairport_sync" }}' | tee /tmp/label-shairport
+          test "$(cat /tmp/label-librespot)" = "${LIBRESPOT_VERSION}"
+          test "$(cat /tmp/label-shairport)" = "${SHAIRPORT_SYNC_VERSION}"
+          docker run --rm --entrypoint /bin/sh rezon8-snapserver:stream-sources-check -c '
+            set -eu
+            command -v librespot
+            command -v shairport-sync
+            command -v ffmpeg
+            librespot --version
+            shairport-sync -V
+          '
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v7
@@ -52,8 +66,12 @@ jobs:
             ## Summary
             - refreshes tracked upstream versions for `librespot` and `shairport-sync`
             - updates `docker/snapcast-test/stream-sources.versions.json`
+            - builds the Snapweb test image and verifies both binaries are installed at those pins
 
-            ## Why
-            - keeps stream source dependencies visible and current in the repo
+            ## Deploy to DietPi
+            After merge:
+            ```bash
+            ./scripts/upgrade_dietpi_stream_sources.sh --restart
+            ```
           branch: "chore/update-stream-sources"
           delete-branch: true
