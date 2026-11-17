@@ -289,32 +289,9 @@ jobs:
         run: cmake --build build --parallel 3 --verbose
 
 
-  macos:
-    # Single macOS job only. Hosted macOS capacity is chronically short;
-    # cancelled queued jobs would otherwise fail the whole workflow even
-    # when Linux/Windows already passed. continue-on-error keeps the
-    # required signal on Linux/Windows while still smoking macOS when a
-    # runner is available.
-    runs-on: macos-15
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v5
-      - name: print environment
-        run: env
-      - name: dependencies
-        run: |
-          brew update
-          brew install libsoxr flac libvorbis opus catch2 boost
-      - name: configure
-        run: |
-          cmake -S . -B build \
-            -DWERROR=ON -DBUILD_TESTS=ON \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS="-I/usr/local/include -DCMAKE_CXX_FLAGS=-DJSON_HAS_CPP_14"
-      - name: build
-        run: cmake --build build --parallel 3 --verbose
-
+  # macOS is in .github/workflows/ci-macos.yml (manual/weekly only).
+  # Hosted macOS runners are often unavailable; cancelled queued jobs were
+  # failing this whole CI run despite Linux/Windows succeeding.
 
   windows:
 
