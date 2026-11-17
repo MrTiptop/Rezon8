@@ -73,3 +73,7 @@ extras/package/debian/snap*.debhelper.log
 
 # local deployment secrets
 scripts/.env.dietpi.local
+
+# local tooling / test output
+.tmp-pw-venv/
+test-results/
